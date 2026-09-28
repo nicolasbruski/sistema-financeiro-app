@@ -21,7 +21,7 @@
       </a>
       <nav class="side-nav">
         <a class="nav-item is-active" href="#inicio" data-view="inicio"><span aria-hidden="true">⌂</span>Visão geral</a>
-        <a class="nav-item" href="#movimentacoes" data-view="movimentacoes"><span aria-hidden="true">↕</span>Movimentações</a>
+        <a class="nav-item" href="#contas" data-view="lancamentos"><span aria-hidden="true">↕</span>Contas e gastos</a>
         <a class="nav-item" href="#planejamento" data-view="planejamento"><span aria-hidden="true">◎</span>Planejamento</a>
       </nav>
       <div class="sidebar-foot">
@@ -30,15 +30,14 @@
       </div>
     </aside>
 
-    <main class="app-shell" id="inicio">
+    <main class="app-shell">
       <header class="topbar">
         <div>
-          <p class="greeting" id="greeting">Boa tarde</p>
-          <h1>Como está o nosso mês?</h1>
+          <p class="greeting" id="pageKicker">Boa tarde</p>
+          <h1 id="pageTitle">Como está o nosso mês?</h1>
         </div>
         <div class="top-actions">
           <button class="icon-button" id="exportButton" aria-label="Exportar relatório em PDF" title="Exportar PDF">⇩</button>
-          <button class="button button-primary" id="openTransaction"><span aria-hidden="true">＋</span> Nova movimentação</button>
         </div>
       </header>
 
@@ -49,102 +48,111 @@
         <button class="sync-button" id="syncButton"><span aria-hidden="true">↻</span><span>Sincronizar</span></button>
       </section>
 
-      <section class="ledger-hero" aria-labelledby="balanceLabel">
-        <div class="balance-block">
-          <p id="balanceLabel">Saldo total do mês</p>
-          <strong id="balanceValue">R$ 0,00</strong>
-          <span id="balanceDelta">Calculando o mês...</span>
+      <section class="app-view" id="inicio" data-page="dashboard">
+        <section class="ledger-hero" aria-labelledby="balanceLabel">
+          <div class="balance-block">
+            <p id="balanceLabel">Saldo total do mês</p>
+            <strong id="balanceValue">R$ 0,00</strong>
+            <span id="balanceDelta">Calculando o mês...</span>
+          </div>
+          <div class="hero-chart-wrap">
+            <canvas id="balanceChart" role="img" aria-label="Evolução do saldo durante o mês"></canvas>
+          </div>
+          <dl class="hero-totals">
+            <div><dt>Entradas</dt><dd class="positive" id="incomeValue">R$ 0,00</dd></div>
+            <div><dt>Saídas</dt><dd id="expenseValue">R$ 0,00</dd></div>
+          </dl>
+        </section>
+
+        <section class="ownership-summary" aria-labelledby="ownershipTitle">
+          <div class="ownership-heading">
+            <div>
+              <h2 id="ownershipTitle">Como o saldo está dividido</h2>
+              <p>Veja o que é individual e o que pertence aos dois.</p>
+            </div>
+            <span class="total-note">O total acima soma os três valores</span>
+          </div>
+          <dl class="ownership-balances">
+            <div class="owner-balance">
+              <dt><span class="owner-dot owner-you" aria-hidden="true"></span>Seu dinheiro</dt>
+              <dd id="yourBalance">R$ 0,00</dd>
+              <small>Entradas e saídas marcadas como suas</small>
+            </div>
+            <div class="owner-balance">
+              <dt><span class="owner-dot owner-partner" aria-hidden="true"></span>Dinheiro dela</dt>
+              <dd id="partnerBalance">R$ 0,00</dd>
+              <small>Entradas e saídas da sua namorada</small>
+            </div>
+            <div class="owner-balance shared-balance">
+              <dt><span class="owner-dot owner-shared" aria-hidden="true"></span>Dinheiro compartilhado</dt>
+              <dd id="sharedBalance">R$ 0,00</dd>
+              <small>O valor que pertence a vocês dois</small>
+            </div>
+          </dl>
+        </section>
+
+        <div class="dashboard-grid">
+          <section class="panel rhythm-panel" aria-labelledby="rhythmTitle">
+            <div class="panel-heading">
+              <div><h2 id="rhythmTitle">Ritmo do mês</h2><p>Gastos organizados por semana</p></div>
+              <span class="budget-chip" id="budgetChip">Dentro do planejado</span>
+            </div>
+            <div class="week-list" id="weekList"></div>
+          </section>
+
+          <section class="panel category-panel" aria-labelledby="categoryTitle">
+            <div class="panel-heading">
+              <div><h2 id="categoryTitle">Para onde foi</h2><p>Distribuição das despesas</p></div>
+            </div>
+            <div class="category-chart">
+              <div class="donut" id="categoryDonut"><span><strong id="categoryTotal">R$ 0</strong><small>em despesas</small></span></div>
+              <ul class="legend" id="categoryLegend"></ul>
+            </div>
+          </section>
+
+          <section class="panel plan-panel" id="planejamento" aria-labelledby="planTitle">
+            <div class="panel-heading">
+              <div><h2 id="planTitle">Plano do mês</h2><p>Limite e reserva combinados</p></div>
+              <button class="icon-button subtle" id="editPlan" aria-label="Editar planejamento">✎</button>
+            </div>
+            <div class="plan-summary">
+              <div class="plan-gauge" id="planGauge"><span id="planPercent">0%</span></div>
+              <div><strong id="remainingBudget">R$ 0,00</strong><p>disponíveis no orçamento</p></div>
+            </div>
+            <div class="goal-row"><span>Reserva do casal</span><strong id="goalValue">R$ 0,00</strong></div>
+          </section>
         </div>
-        <div class="hero-chart-wrap">
-          <canvas id="balanceChart" role="img" aria-label="Evolução do saldo durante o mês"></canvas>
-        </div>
-        <dl class="hero-totals">
-          <div><dt>Entradas</dt><dd class="positive" id="incomeValue">R$ 0,00</dd></div>
-          <div><dt>Saídas</dt><dd id="expenseValue">R$ 0,00</dd></div>
-        </dl>
       </section>
 
-      <section class="ownership-summary" aria-labelledby="ownershipTitle">
-        <div class="ownership-heading">
-          <div>
-            <h2 id="ownershipTitle">Como o saldo está dividido</h2>
-            <p>Veja o que é individual e o que pertence aos dois.</p>
-          </div>
-          <span class="total-note">O total acima soma os três valores</span>
-        </div>
-        <dl class="ownership-balances">
-          <div class="owner-balance">
-            <dt><span class="owner-dot owner-you" aria-hidden="true"></span>Seu dinheiro</dt>
-            <dd id="yourBalance">R$ 0,00</dd>
-            <small>Entradas e saídas marcadas como suas</small>
-          </div>
-          <div class="owner-balance">
-            <dt><span class="owner-dot owner-partner" aria-hidden="true"></span>Dinheiro dela</dt>
-            <dd id="partnerBalance">R$ 0,00</dd>
-            <small>Entradas e saídas da sua namorada</small>
-          </div>
-          <div class="owner-balance shared-balance">
-            <dt><span class="owner-dot owner-shared" aria-hidden="true"></span>Dinheiro compartilhado</dt>
-            <dd id="sharedBalance">R$ 0,00</dd>
-            <small>O valor que pertence a vocês dois</small>
-          </div>
-        </dl>
-      </section>
+      <section class="app-view records-view" id="lancamentos" data-page="records" hidden>
+        <nav class="record-tabs" aria-label="Organização do mês" role="tablist">
+          <a id="billsTab" href="#contas" role="tab" aria-controls="billsPanel" aria-selected="true">Contas do mês</a>
+          <a id="expensesTab" href="#gastos" role="tab" aria-controls="expensesPanel" aria-selected="false">Gastos do mês</a>
+        </nav>
 
-      <div class="dashboard-grid">
-        <section class="panel rhythm-panel" aria-labelledby="rhythmTitle">
-          <div class="panel-heading">
-            <div><h2 id="rhythmTitle">Ritmo do mês</h2><p>Gastos organizados por semana</p></div>
-            <span class="budget-chip" id="budgetChip">Dentro do planejado</span>
-          </div>
-          <div class="week-list" id="weekList"></div>
-        </section>
-
-        <section class="panel category-panel" aria-labelledby="categoryTitle">
-          <div class="panel-heading">
-            <div><h2 id="categoryTitle">Para onde foi</h2><p>Distribuição das despesas</p></div>
-          </div>
-          <div class="category-chart">
-            <div class="donut" id="categoryDonut"><span><strong id="categoryTotal">R$ 0</strong><small>em despesas</small></span></div>
-            <ul class="legend" id="categoryLegend"></ul>
-          </div>
-        </section>
-
-        <section class="panel transactions-panel" id="movimentacoes" aria-labelledby="transactionTitle">
-          <div class="panel-heading transaction-heading">
-            <div><h2 id="transactionTitle">Movimentações recentes</h2><p id="transactionCount">Nenhum lançamento</p></div>
-            <button class="text-button" id="showAllButton">Ver todas</button>
-          </div>
-          <div class="transaction-list" id="transactionList"></div>
-        </section>
-
-        <section class="panel plan-panel" id="planejamento" aria-labelledby="planTitle">
-          <div class="panel-heading">
-            <div><h2 id="planTitle">Plano do mês</h2><p>Limite e reserva combinados</p></div>
-            <button class="icon-button subtle" id="editPlan" aria-label="Editar planejamento">✎</button>
-          </div>
-          <div class="plan-summary">
-            <div class="plan-gauge" id="planGauge"><span id="planPercent">0%</span></div>
-            <div><strong id="remainingBudget">R$ 0,00</strong><p>disponíveis no orçamento</p></div>
-          </div>
-          <div class="goal-row"><span>Reserva do casal</span><strong id="goalValue">R$ 0,00</strong></div>
-        </section>
-
-        <section class="panel bills-panel" aria-labelledby="billsTitle">
+        <section class="panel records-panel" id="billsPanel" role="tabpanel" aria-labelledby="billsTab">
           <div class="panel-heading bills-heading">
             <div><h2 id="billsTitle">Contas do mês</h2><p id="billsSummary">Nenhuma conta cadastrada</p></div>
-            <button class="text-button" id="openBill">Nova conta</button>
+            <button class="button button-primary compact-action" id="openBill"><span aria-hidden="true">＋</span> Nova conta</button>
           </div>
           <div class="bill-list" id="billList"></div>
         </section>
-      </div>
+
+        <section class="panel records-panel" id="expensesPanel" role="tabpanel" aria-labelledby="expensesTab" hidden>
+          <div class="panel-heading transaction-heading">
+            <div><h2 id="transactionTitle">Gastos e movimentações</h2><p id="transactionCount">Nenhum lançamento</p></div>
+            <button class="button button-primary compact-action" id="openTransaction"><span aria-hidden="true">＋</span> Nova movimentação</button>
+          </div>
+          <div class="transaction-list" id="transactionList"></div>
+        </section>
+      </section>
     </main>
 
     <nav class="mobile-nav" aria-label="Navegação móvel">
-      <a class="is-active" href="#inicio"><span>⌂</span>Início</a>
-      <a href="#movimentacoes"><span>↕</span>Movimentos</a>
+      <a class="is-active" href="#inicio" data-view="inicio"><span>⌂</span>Início</a>
+      <a href="#contas" data-view="lancamentos"><span>▣</span>Lançamentos</a>
       <button id="mobileAdd" aria-label="Nova movimentação">＋</button>
-      <a href="#planejamento"><span>◎</span>Plano</a>
+      <a href="#planejamento" data-view="planejamento"><span>◎</span>Plano</a>
       <button id="mobileSettings"><span>⚙</span>Ajustes</button>
     </nav>
 

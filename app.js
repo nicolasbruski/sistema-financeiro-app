@@ -10,7 +10,6 @@ const CATEGORIES = {
 
 const today = new Date();
 let cursor = new Date(today.getFullYear(), today.getMonth(), 1);
-let showAll = false;
 let monthData = null;
 
 const demoTransactions = [
@@ -159,11 +158,8 @@ function renderCategories(totalExpense) {
 
 function renderTransactions() {
   const sorted = [...monthData.transactions].sort((a, b) => b.date.localeCompare(a.date));
-  const visible = showAll ? sorted : sorted.slice(0, 5);
   $('#transactionCount').textContent = `${sorted.length} ${sorted.length === 1 ? 'lançamento' : 'lançamentos'} neste mês`;
-  $('#showAllButton').hidden = sorted.length <= 5;
-  $('#showAllButton').textContent = showAll ? 'Ver recentes' : 'Ver todas';
-  $('#transactionList').innerHTML = visible.length ? visible.map(t => {
+  $('#transactionList').innerHTML = sorted.length ? sorted.map(t => {
     const date = new Date(`${t.date}T12:00:00`).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }).replace('.', '');
     const config = CATEGORIES[t.category] || CATEGORIES.Outros;
     const ownerLabel = t.paidBy === 'Você' ? 'Seu' : t.paidBy === 'Namorada' ? 'Dela' : 'Compartilhado';
@@ -283,14 +279,48 @@ function openSettings() {
 function exportPdf() {
   exportPdf.previousTitle = document.title;
   document.title = `Nosso Caixa — ${$('#monthName').textContent} ${cursor.getFullYear()}`;
-  exportPdf.previousShowAll = showAll;
-  showAll = true;
-  renderTransactions();
   toast('Escolha “Salvar como PDF” na janela de impressão');
   setTimeout(() => window.print(), 250);
 }
 
-function setMonth(delta) { cursor = new Date(cursor.getFullYear(), cursor.getMonth() + delta, 1); showAll = false; loadMonth(); }
+function setMonth(delta) { cursor = new Date(cursor.getFullYear(), cursor.getMonth() + delta, 1); loadMonth(); }
+
+function syncRoute() {
+  const requestedRoute = location.hash.slice(1) || 'inicio';
+  const route = requestedRoute === 'movimentacoes' ? 'gastos' : requestedRoute;
+  const recordsRoute = route === 'contas' || route === 'gastos';
+  const dashboardView = $('[data-page="dashboard"]');
+  const recordsView = $('[data-page="records"]');
+  const activeView = recordsRoute ? 'lancamentos' : route === 'planejamento' ? 'planejamento' : 'inicio';
+
+  dashboardView.hidden = recordsRoute;
+  recordsView.hidden = !recordsRoute;
+  $('#billsPanel').hidden = route !== 'contas';
+  $('#expensesPanel').hidden = route !== 'gastos';
+  $('#billsTab').setAttribute('aria-selected', String(route !== 'gastos'));
+  $('#expensesTab').setAttribute('aria-selected', String(route === 'gastos'));
+
+  document.querySelectorAll('[data-view]').forEach(link => {
+    const active = link.dataset.view === activeView;
+    link.classList.toggle('is-active', active);
+    if (active) link.setAttribute('aria-current', 'page');
+    else link.removeAttribute('aria-current');
+  });
+
+  const hour = new Date().getHours();
+  const greeting = hour < 12 ? 'Bom dia' : hour < 18 ? 'Boa tarde' : 'Boa noite';
+  $('#pageKicker').textContent = recordsRoute ? 'Organização mensal' : greeting;
+  $('#pageTitle').textContent = recordsRoute ? 'Contas e gastos' : 'Como está o nosso mês?';
+  document.body.classList.toggle('records-mode', recordsRoute);
+  $('#exportButton').hidden = recordsRoute;
+  document.title = recordsRoute ? 'Contas e gastos — Nosso Caixa' : 'Nosso Caixa';
+
+  if (route === 'planejamento') {
+    requestAnimationFrame(() => $('#planejamento').scrollIntoView({ block: 'start' }));
+  } else if (!recordsRoute) {
+    requestAnimationFrame(renderBalanceChart);
+  }
+}
 
 function updateOwnerPickerCopy() {
   const isIncome = $('#incomeType').checked;
@@ -300,7 +330,7 @@ function updateOwnerPickerCopy() {
 
 $('#openTransaction').addEventListener('click', () => { updateOwnerPickerCopy(); openDialog('#transactionDialog'); });
 $('#openBill').addEventListener('click', () => openDialog('#billDialog'));
-$('#mobileAdd').addEventListener('click', () => { updateOwnerPickerCopy(); openDialog('#transactionDialog'); });
+$('#mobileAdd').addEventListener('click', () => { location.hash = 'gastos'; updateOwnerPickerCopy(); openDialog('#transactionDialog'); });
 $('#settingsButton').addEventListener('click', openSettings);
 $('#mobileSettings').addEventListener('click', openSettings);
 $('#syncButton').addEventListener('click', syncGithub);
@@ -308,7 +338,6 @@ $('#exportButton').addEventListener('click', exportPdf);
 $('#previousMonth').addEventListener('click', () => setMonth(-1));
 $('#nextMonth').addEventListener('click', () => setMonth(1));
 $('#monthPicker').addEventListener('click', () => toast('Use as setas para navegar entre os meses'));
-$('#showAllButton').addEventListener('click', () => { showAll = !showAll; renderTransactions(); });
 $('#editPlan').addEventListener('click', () => {
   $('#planForm').yourBudget.value = (monthData.openingBalances['Você'] / 100).toFixed(2).replace('.', ',');
   $('#planForm').partnerBudget.value = (monthData.openingBalances.Namorada / 100).toFixed(2).replace('.', ',');
@@ -388,12 +417,12 @@ $('#settingsForm').addEventListener('submit', event => {
 });
 
 window.addEventListener('resize', () => requestAnimationFrame(renderBalanceChart));
+window.addEventListener('hashchange', syncRoute);
 window.addEventListener('beforeprint', render);
-window.addEventListener('afterprint', () => { showAll = exportPdf.previousShowAll ?? showAll; document.title = exportPdf.previousTitle || 'Nosso Caixa'; renderTransactions(); });
-const hour = new Date().getHours();
-$('#greeting').textContent = hour < 12 ? 'Bom dia' : hour < 18 ? 'Boa tarde' : 'Boa noite';
+window.addEventListener('afterprint', () => { document.title = exportPdf.previousTitle || 'Nosso Caixa'; });
 $('#transactionForm').date.valueAsDate = today;
 $('#categorySelect').innerHTML = Object.keys(CATEGORIES).filter(c => c !== 'Receita').map(c => `<option>${c}</option>`).join('');
 $('#billCategorySelect').innerHTML = Object.keys(CATEGORIES).filter(c => c !== 'Receita').map(c => `<option>${c}</option>`).join('');
 loadMonth();
+syncRoute();
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(() => {});

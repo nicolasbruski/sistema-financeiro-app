@@ -14,6 +14,7 @@
 }
 
 * { box-sizing: border-box; }
+[hidden] { display: none !important; }
 html { scroll-behavior: smooth; }
 body { margin: 0; min-width: 20rem; background: var(--mist); color: var(--ink); font-family: Inter, sans-serif; font-size: 1rem; line-height: 1.5; }
 button, input, select { font: inherit; }
@@ -45,10 +46,9 @@ h2 { margin: 0; font-size: 1.05rem; letter-spacing: -0.02em; }
 .sync-button span:first-child { margin-right: 0.3rem; }
 
 .ledger-hero { position: relative; display: grid; overflow: hidden; min-height: 21rem; border-radius: var(--radius-lg); padding: 1.5rem; background: var(--ink); color: white; box-shadow: var(--shadow); }
-.ledger-hero::before { content: ""; position: absolute; inset: 0; pointer-events: none; background: repeating-linear-gradient(90deg, transparent 0, transparent calc(25% - 1px), rgba(255,255,255,.055) 25%); }
 .balance-block { z-index: 1; }
 .balance-block p { margin: 0 0 0.25rem; color: #aebcd0; font-size: 0.875rem; }
-.balance-block strong { display: block; font-size: clamp(2.15rem, 10vw, 4.5rem); line-height: 1.05; letter-spacing: -0.06em; white-space: nowrap; }
+.balance-block strong { display: block; font-size: clamp(2.15rem, 10vw, 4.5rem); line-height: 1.05; letter-spacing: -0.04em; white-space: nowrap; }
 .balance-block span { display: inline-block; margin-top: 0.75rem; border-radius: 999px; padding: 0.35rem 0.65rem; background: rgba(255,255,255,.1); color: #cfdaea; font-size: 0.8rem; }
 .hero-chart-wrap { position: relative; height: 7.8rem; margin: 1.25rem -1.5rem 0; }
 #balanceChart { width: 100%; height: 100%; }
@@ -74,6 +74,17 @@ h2 { margin: 0; font-size: 1.05rem; letter-spacing: -0.02em; }
 .owner-balance dd.is-negative { color: #b54432; }
 
 .dashboard-grid { display: grid; gap: 1rem; margin-top: 1rem; }
+.records-view { width: 100%; min-width: 0; max-width: 72rem; margin: 0 auto; }
+.record-tabs { display: flex; gap: 0.35rem; margin-bottom: 1rem; border-bottom: 1px solid var(--line); }
+.record-tabs a { position: relative; min-height: 3rem; padding: 0.8rem 1rem; color: var(--ink-soft); font-size: 0.875rem; font-weight: 700; text-decoration: none; }
+.record-tabs a::after { content: ""; position: absolute; right: 0.75rem; bottom: -1px; left: 0.75rem; height: 2px; background: transparent; }
+.record-tabs a[aria-selected="true"] { color: var(--blue); }
+.record-tabs a[aria-selected="true"]::after { background: var(--blue); }
+.records-panel { width: 100%; min-width: 0; min-height: 20rem; overflow: hidden; }
+.records-panel .panel-heading { align-items: stretch; flex-direction: column; }
+.compact-action { min-height: 2.75rem; padding: 0.6rem 0.9rem; font-size: 0.8rem; white-space: nowrap; }
+.records-panel .compact-action { width: 100%; }
+.compact-action span { margin-right: 0.2rem; font-size: 1rem; }
 .panel { border: 1px solid rgba(16,35,63,.07); border-radius: var(--radius-md); padding: 1.15rem; background: var(--paper); }
 .panel-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; margin-bottom: 1.25rem; }
 .panel-heading p { margin: 0.2rem 0 0; color: var(--ink-soft); font-size: 0.8rem; }
@@ -100,16 +111,17 @@ h2 { margin: 0; font-size: 1.05rem; letter-spacing: -0.02em; }
 .transactions-panel { scroll-margin-top: 1rem; }
 .text-button { min-height: 2.75rem; border: 0; background: transparent; color: var(--blue); font-weight: 700; cursor: pointer; }
 .transaction-list { display: grid; }
-.transaction-item { display: grid; grid-template-columns: 2.7rem 1fr auto; align-items: center; gap: 0.75rem; min-height: 4.4rem; border-top: 1px solid #edf0f3; }
+.transaction-item { display: grid; grid-template-columns: 2.7rem minmax(0, 1fr) auto; align-items: center; gap: 0.75rem; min-height: 4.4rem; border-top: 1px solid #edf0f3; }
 .transaction-item:first-child { border-top: 0; }
 .transaction-icon { display: grid; place-items: center; width: 2.7rem; height: 2.7rem; border-radius: 0.8rem; background: #edf2ff; font-size: 1.05rem; }
 .transaction-main strong, .transaction-main span { display: block; }
+.transaction-main { min-width: 0; }
 .transaction-main strong { overflow: hidden; font: 600 0.875rem Inter, sans-serif; text-overflow: ellipsis; white-space: nowrap; }
 .transaction-main > span { display: flex; flex-wrap: wrap; align-items: center; gap: 0.35rem; color: var(--ink-soft); font-size: 0.72rem; }
 .owner-pill { border-radius: 999px; padding: 0.15rem 0.42rem; background: #edf2ff; color: #204ebf; font-style: normal; font-weight: 700; }
 .owner-pill.partner { background: #fff0ed; color: #a94332; }
 .owner-pill.shared { background: #e5f6f1; color: #08755c; }
-.transaction-value { text-align: right; font: 600 0.82rem Sora, sans-serif; }
+.transaction-value { white-space: nowrap; text-align: right; font: 600 0.82rem Sora, sans-serif; }
 .transaction-value.income { color: var(--green); }
 .empty-state { padding: 2.5rem 1rem; color: var(--ink-soft); text-align: center; }
 .plan-panel { scroll-margin-top: 1rem; }
@@ -121,7 +133,6 @@ h2 { margin: 0; font-size: 1.05rem; letter-spacing: -0.02em; }
 .plan-summary p { margin: 0.15rem 0 0; color: var(--ink-soft); font-size: 0.76rem; }
 .goal-row { display: flex; justify-content: space-between; margin-top: 1.25rem; padding-top: 1rem; border-top: 1px solid var(--line); font-size: 0.8rem; }
 .goal-row strong { font-size: 0.8rem; color: var(--green); }
-.bills-panel { grid-column: 1 / -1; }
 .bills-heading { align-items: center; }
 .bill-list { display: grid; }
 .bill-item { display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto; align-items: center; gap: 0.75rem; min-height: 4.5rem; border-top: 1px solid #edf0f3; }
@@ -145,7 +156,7 @@ h2 { margin: 0; font-size: 1.05rem; letter-spacing: -0.02em; }
 .bill-remove:hover { background: #fff0ed; color: #a94332; }
 .bill-empty { padding: 1.75rem 0.5rem; color: var(--ink-soft); text-align: center; font-size: 0.82rem; }
 
-.mobile-nav { position: fixed; z-index: 20; right: 0.75rem; bottom: calc(0.65rem + env(safe-area-inset-bottom)); left: 0.75rem; display: grid; grid-template-columns: repeat(5, 1fr); align-items: center; min-height: 4.25rem; border: 1px solid rgba(255,255,255,.14); border-radius: 1.25rem; padding: 0.3rem; background: rgba(16,35,63,.97); box-shadow: 0 1rem 3rem rgba(16,35,63,.3); }
+.mobile-nav { position: fixed; z-index: 20; right: 0.75rem; bottom: calc(0.65rem + env(safe-area-inset-bottom)); left: 0.75rem; display: grid; grid-template-columns: repeat(5, 1fr); align-items: center; min-height: 4.25rem; border-radius: 1.25rem; padding: 0.3rem; background: rgba(16,35,63,.97); box-shadow: 0 0.5rem 0.5rem rgba(16,35,63,.22); }
 .mobile-nav a, .mobile-nav button { display: grid; justify-items: center; border: 0; background: transparent; color: #9eacc0; font-size: 0.62rem; text-decoration: none; cursor: pointer; }
 .mobile-nav span { font-size: 1.15rem; }
 .mobile-nav .is-active { color: white; }
@@ -183,6 +194,13 @@ h2 { margin: 0; font-size: 1.05rem; letter-spacing: -0.02em; }
 .toast { position: fixed; z-index: 50; right: 1rem; bottom: 6rem; left: 1rem; transform: translateY(1rem); border-radius: 0.8rem; padding: 0.85rem 1rem; background: var(--ink); color: white; opacity: 0; pointer-events: none; text-align: center; transition: .2s ease; }
 .toast.show { transform: translateY(0); opacity: 1; }
 
+@media (max-width: 30rem) {
+  body.records-mode .topbar > div:first-child { max-width: none; }
+  .sync-button { width: 2.75rem; padding: 0; }
+  .sync-button span:first-child { margin: 0; }
+  .sync-button span:last-child { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+}
+
 @media (min-width: 48rem) {
   .app-shell { padding: 2rem 2rem 6rem; }
   .topbar > div:first-child { max-width: none; }
@@ -203,8 +221,10 @@ h2 { margin: 0; font-size: 1.05rem; letter-spacing: -0.02em; }
   .owner-options label { display: block; min-height: 4.4rem; }
   .owner-options label span { margin-top: 0.2rem; }
   .dashboard-grid { grid-template-columns: 1.15fr .85fr; }
-  .transactions-panel { grid-row: span 2; }
-  .bills-panel { grid-column: 1 / -1; }
+  .records-panel .panel-heading { align-items: center; flex-direction: row; }
+  .records-panel .compact-action { width: auto; }
+  .plan-panel { grid-column: 1 / -1; }
+  .plan-panel .plan-summary { max-width: 28rem; }
   .dialog form { padding: 1.75rem; }
 }
 
