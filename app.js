@@ -28,17 +28,34 @@ const $ = (selector) => document.querySelector(selector);
 const money = (cents, digits = 2) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: digits, maximumFractionDigits: digits }).format(cents / 100);
 const monthKey = () => `${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, '0')}`;
 const storageKey = () => `nosso-caixa:${monthKey()}`;
-const emptyMonth = () => ({ version: 1, month: monthKey(), budget: 0, savingsGoal: 0, openingBalance: 0, transactions: [] });
+const emptyMonth = () => ({ version: 2, month: monthKey(), budget: 0, savingsGoal: 0, openingBalance: 0, openingBalances: { 'Você': 0, Namorada: 0 }, transactions: [] });
+
+function normalizeMonth(data) {
+  const normalized = { ...emptyMonth(), ...data };
+  if (!data.openingBalances) {
+    const hasIncome = (normalized.transactions || []).some(transaction => transaction.type === 'income');
+    normalized.openingBalances = {
+      'Você': !hasIncome && !normalized.openingBalance ? normalized.budget || 0 : 0,
+      Namorada: 0
+    };
+  }
+  normalized.openingBalances['Você'] = Number(normalized.openingBalances['Você']) || 0;
+  normalized.openingBalances.Namorada = Number(normalized.openingBalances.Namorada) || 0;
+  normalized.budget = normalized.openingBalances['Você'] + normalized.openingBalances.Namorada;
+  normalized.version = 2;
+  return normalized;
+}
 
 function loadMonth() {
   const stored = localStorage.getItem(storageKey());
-  monthData = stored ? JSON.parse(stored) : emptyMonth();
+  monthData = normalizeMonth(stored ? JSON.parse(stored) : emptyMonth());
   if (!stored && monthKey() === '2026-09' && new URLSearchParams(location.search).has('demo')) {
+    monthData.openingBalances = { 'Você': 400000, Namorada: 300000 };
     monthData.budget = 700000;
     monthData.savingsGoal = 100000;
     monthData.transactions = demoTransactions;
   }
-  if (!stored) {
+  if (!stored || JSON.stringify(JSON.parse(stored)) !== JSON.stringify(monthData)) {
     monthData.updatedAt = new Date().toISOString();
     localStorage.setItem(storageKey(), JSON.stringify(monthData));
   }
@@ -55,11 +72,16 @@ function saveLocal(feedback = true) {
 function totals() {
   const income = monthData.transactions.filter(t => t.type === 'income').reduce((sum, t) => sum + t.value, 0);
   const expense = monthData.transactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.value, 0);
-  return { income, expense, balance: monthData.openingBalance + income - expense };
+  const plannedMoney = monthData.openingBalances['Você'] + monthData.openingBalances.Namorada;
+  return { income, expense, balance: monthData.openingBalance + plannedMoney + income - expense };
 }
 
 function ownerTotals() {
-  const balances = { 'Você': 0, Namorada: 0, Casal: monthData.openingBalance || 0 };
+  const balances = {
+    'Você': monthData.openingBalances['Você'],
+    Namorada: monthData.openingBalances.Namorada,
+    Casal: monthData.openingBalance || 0
+  };
   monthData.transactions.forEach(transaction => {
     const owner = balances[transaction.paidBy] === undefined ? 'Casal' : transaction.paidBy;
     balances[owner] += transaction.type === 'income' ? transaction.value : -transaction.value;
@@ -159,8 +181,9 @@ function renderBalanceChart() {
   canvas.height = Math.max(1, rect.height * dpr);
   const ctx = canvas.getContext('2d');
   ctx.scale(dpr, dpr);
-  const values = [monthData.openingBalance];
-  let running = monthData.openingBalance;
+  const initialBalance = monthData.openingBalance + monthData.openingBalances['Você'] + monthData.openingBalances.Namorada;
+  const values = [initialBalance];
+  let running = initialBalance;
   [...monthData.transactions].sort((a,b) => a.date.localeCompare(b.date)).forEach(t => { running += t.type === 'income' ? t.value : -t.value; values.push(running); });
   if (values.length === 1) values.push(values[0]);
   const min = Math.min(...values), max = Math.max(...values), spread = Math.max(1, max - min);
@@ -199,7 +222,7 @@ async function syncGithub() {
       const remoteTime = new Date(remoteData.updatedAt || 0).getTime();
       const localTime = new Date(monthData.updatedAt || 0).getTime();
       if (remoteTime > localTime) {
-        monthData = remoteData;
+        monthData = normalizeMonth(remoteData);
         localStorage.setItem(storageKey(), JSON.stringify(monthData));
         render();
         $('#syncText').textContent = 'Dados carregados do GitHub';
@@ -260,7 +283,12 @@ $('#previousMonth').addEventListener('click', () => setMonth(-1));
 $('#nextMonth').addEventListener('click', () => setMonth(1));
 $('#monthPicker').addEventListener('click', () => toast('Use as setas para navegar entre os meses'));
 $('#showAllButton').addEventListener('click', () => { showAll = !showAll; renderTransactions(); });
-$('#editPlan').addEventListener('click', () => { $('#planForm').budget.value = (monthData.budget / 100).toFixed(2).replace('.', ','); $('#planForm').goal.value = (monthData.savingsGoal / 100).toFixed(2).replace('.', ','); openDialog('#planDialog'); });
+$('#editPlan').addEventListener('click', () => {
+  $('#planForm').yourBudget.value = (monthData.openingBalances['Você'] / 100).toFixed(2).replace('.', ',');
+  $('#planForm').partnerBudget.value = (monthData.openingBalances.Namorada / 100).toFixed(2).replace('.', ',');
+  $('#planForm').goal.value = (monthData.savingsGoal / 100).toFixed(2).replace('.', ',');
+  openDialog('#planDialog');
+});
 document.querySelectorAll('input[name="type"]').forEach(input => input.addEventListener('change', updateOwnerPickerCopy));
 
 $('#transactionForm').addEventListener('submit', event => {
@@ -277,7 +305,14 @@ $('#transactionForm').addEventListener('submit', event => {
 $('#planForm').addEventListener('submit', event => {
   if (event.submitter?.value === 'cancel') return;
   event.preventDefault();
-  const form = new FormData(event.currentTarget); monthData.budget = parseCurrency(form.get('budget')); monthData.savingsGoal = parseCurrency(form.get('goal')); saveLocal(false); render(); event.currentTarget.closest('dialog').close(); toast('Planejamento atualizado');
+  const form = new FormData(event.currentTarget);
+  const yourBudget = parseCurrency(form.get('yourBudget')) || 0;
+  const partnerBudget = parseCurrency(form.get('partnerBudget')) || 0;
+  if (yourBudget < 0 || partnerBudget < 0) { toast('Informe valores válidos para o planejamento'); return; }
+  monthData.openingBalances = { 'Você': yourBudget, Namorada: partnerBudget };
+  monthData.budget = yourBudget + partnerBudget;
+  monthData.savingsGoal = parseCurrency(form.get('goal')) || 0;
+  saveLocal(false); render(); event.currentTarget.closest('dialog').close(); toast('Planejamento atualizado');
 });
 
 $('#settingsForm').addEventListener('submit', event => {

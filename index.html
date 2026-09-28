@@ -168,8 +168,15 @@
 
     <dialog id="planDialog" class="dialog compact-dialog">
       <form method="dialog" id="planForm">
-        <div class="dialog-head"><div><h2>Planejamento</h2><p>Defina os combinados deste mês.</p></div><button class="icon-button subtle" value="cancel" aria-label="Fechar">×</button></div>
-        <label>Orçamento mensal<input name="budget"  inputmode="decimal" /></label>
+        <div class="dialog-head"><div><h2>Planejamento</h2><p>Separe o dinheiro disponível de cada um.</p></div><button class="icon-button subtle" value="cancel" aria-label="Fechar">×</button></div>
+        <fieldset class="plan-owner-fields">
+          <legend>Dinheiro disponível no mês</legend>
+          <p>Os dois valores formam o limite mensal e aparecem nos saldos acima.</p>
+          <div class="form-row">
+            <label>Meu dinheiro<input name="yourBudget" inputmode="decimal" placeholder="0,00" /></label>
+            <label>Dinheiro dela<input name="partnerBudget" inputmode="decimal" placeholder="0,00" /></label>
+          </div>
+        </fieldset>
         <label>Meta para a reserva<input name="goal"  inputmode="decimal" /></label>
         <button class="button button-primary full" type="submit">Salvar planejamento</button>
       </form>
