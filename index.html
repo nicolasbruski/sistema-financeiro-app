@@ -147,8 +147,8 @@
           <input type="radio" name="type" id="expenseType" value="expense" checked /><label for="expenseType">Saída</label>
           <input type="radio" name="type" id="incomeType" value="income" /><label for="incomeType">Entrada</label>
         </div>
-        <label>Descrição<input name="description" required maxlength="60" placeholder="Ex.: Mercado da semana" /></label>
-        <div class="form-row"><label>Valor<input name="value" required inputmode="decimal" placeholder="0,00" /></label><label>Data<input name="date" required type="date" /></label></div>
+        <label>Descrição<input name="description" maxlength="60" placeholder="Ex.: Mercado da semana" /></label>
+        <div class="form-row"><label>Valor<input name="value" inputmode="decimal" placeholder="0,00" /></label><label>Data<input name="date" type="date" /></label></div>
         <label>Categoria<select name="category" id="categorySelect"></select></label>
         <fieldset class="owner-picker" aria-describedby="ownerPickerHelp">
           <legend id="ownerPickerLegend">De quem é este valor?</legend>
@@ -169,8 +169,8 @@
     <dialog id="planDialog" class="dialog compact-dialog">
       <form method="dialog" id="planForm">
         <div class="dialog-head"><div><h2>Planejamento</h2><p>Defina os combinados deste mês.</p></div><button class="icon-button subtle" value="cancel" aria-label="Fechar">×</button></div>
-        <label>Orçamento mensal<input name="budget" required inputmode="decimal" /></label>
-        <label>Meta para a reserva<input name="goal" required inputmode="decimal" /></label>
+        <label>Orçamento mensal<input name="budget"  inputmode="decimal" /></label>
+        <label>Meta para a reserva<input name="goal"  inputmode="decimal" /></label>
         <button class="button button-primary full" type="submit">Salvar planejamento</button>
       </form>
     </dialog>
@@ -179,9 +179,9 @@
       <form method="dialog" id="settingsForm">
         <div class="dialog-head"><div><h2>Conectar ao GitHub</h2><p>Os dados ficam em um repositório privado.</p></div><button class="icon-button subtle" value="cancel" aria-label="Fechar">×</button></div>
         <div class="privacy-note"><strong>Seu token não vai para o código.</strong><span>Ele fica somente neste aparelho e precisa de acesso “Contents: read and write” apenas ao repositório de dados.</span></div>
-        <label>Usuário ou organização<input name="owner" required placeholder="seu-usuario" /></label>
-        <label>Repositório de dados<input name="repo" required placeholder="controle-financeiro-dados" /></label>
-        <label>Branch<input name="branch" required value="main" /></label>
+        <label>Usuário ou organização<input name="owner"  placeholder="seu-usuario" /></label>
+        <label>Repositório de dados<input name="repo"  placeholder="controle-financeiro-dados" /></label>
+        <label>Branch<input name="branch"  value="main" /></label>
         <label>Token de acesso<input name="token" type="password" autocomplete="off" placeholder="github_pat_..." /></label>
         <button class="button button-primary full" type="submit">Salvar conexão</button>
       </form>
