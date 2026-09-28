@@ -28,7 +28,7 @@ const $ = (selector) => document.querySelector(selector);
 const money = (cents, digits = 2) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: digits, maximumFractionDigits: digits }).format(cents / 100);
 const monthKey = () => `${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, '0')}`;
 const storageKey = () => `nosso-caixa:${monthKey()}`;
-const emptyMonth = () => ({ version: 2, month: monthKey(), budget: 0, savingsGoal: 0, openingBalance: 0, openingBalances: { 'Você': 0, Namorada: 0 }, transactions: [] });
+const emptyMonth = () => ({ version: 3, month: monthKey(), budget: 0, savingsGoal: 0, openingBalance: 0, openingBalances: { 'Você': 0, Namorada: 0 }, bills: [], transactions: [] });
 
 function normalizeMonth(data) {
   const normalized = { ...emptyMonth(), ...data };
@@ -41,8 +41,9 @@ function normalizeMonth(data) {
   }
   normalized.openingBalances['Você'] = Number(normalized.openingBalances['Você']) || 0;
   normalized.openingBalances.Namorada = Number(normalized.openingBalances.Namorada) || 0;
+  normalized.bills = Array.isArray(normalized.bills) ? normalized.bills : [];
   normalized.budget = normalized.openingBalances['Você'] + normalized.openingBalances.Namorada;
-  normalized.version = 2;
+  normalized.version = 3;
   return normalized;
 }
 
@@ -89,6 +90,10 @@ function ownerTotals() {
   return balances;
 }
 
+function pendingBillsTotal() {
+  return monthData.bills.filter(bill => !bill.paid).reduce((sum, bill) => sum + bill.value, 0);
+}
+
 function render() {
   const label = cursor.toLocaleDateString('pt-BR', { month: 'long' });
   $('#monthName').textContent = label.charAt(0).toUpperCase() + label.slice(1);
@@ -104,11 +109,13 @@ function render() {
   $('#yourBalance').classList.toggle('is-negative', balances['Você'] < 0);
   $('#partnerBalance').classList.toggle('is-negative', balances.Namorada < 0);
   $('#sharedBalance').classList.toggle('is-negative', balances.Casal < 0);
-  $('#balanceDelta').textContent = expense <= monthData.budget ? `${money(monthData.budget - expense)} ainda dentro do plano` : `${money(expense - monthData.budget)} acima do plano`;
-  renderWeeks(expense);
+  const committed = expense + pendingBillsTotal();
+  $('#balanceDelta').textContent = committed <= monthData.budget ? `${money(monthData.budget - committed)} livres após as contas` : `${money(committed - monthData.budget)} acima do plano`;
+  renderWeeks(expense, committed);
   renderCategories(expense);
   renderTransactions();
-  renderPlan(expense);
+  renderPlan(committed);
+  renderBills();
   renderFreshness();
   requestAnimationFrame(renderBalanceChart);
 }
@@ -121,7 +128,7 @@ function renderFreshness() {
   $('#syncText').textContent = stale ? 'Hora da revisão semanal' : days === 0 ? 'Atualizado hoje' : `Atualizado há ${days} ${days === 1 ? 'dia' : 'dias'}`;
 }
 
-function renderWeeks(totalExpense) {
+function renderWeeks(totalExpense, committed) {
   const weeks = [0, 0, 0, 0, 0];
   monthData.transactions.filter(t => t.type === 'expense').forEach(t => {
     const day = Number(t.date.slice(-2));
@@ -130,7 +137,7 @@ function renderWeeks(totalExpense) {
   const max = Math.max(...weeks, monthData.budget / 4, 1);
   const currentWeek = cursor.getMonth() === today.getMonth() && cursor.getFullYear() === today.getFullYear() ? Math.min(4, Math.floor((today.getDate() - 1) / 7)) : -1;
   $('#weekList').innerHTML = weeks.map((value, index) => `<div class="week-item ${index === currentWeek ? 'current' : ''}"><span>Semana ${index + 1}</span><div class="bar-track"><i style="width:${Math.min(100, value / max * 100)}%"></i></div><strong>${money(value, 0)}</strong></div>`).join('');
-  const over = totalExpense > monthData.budget;
+  const over = committed > monthData.budget;
   $('#budgetChip').textContent = over ? 'Acima do planejado' : 'Dentro do planejado';
   $('#budgetChip').classList.toggle('is-alert', over);
 }
@@ -165,12 +172,30 @@ function renderTransactions() {
   }).join('') : '<div class="empty-state"><strong>O mês está pronto para começar.</strong><br>Inclua a primeira movimentação.</div>';
 }
 
-function renderPlan(expense) {
-  const percent = monthData.budget ? Math.round(expense / monthData.budget * 100) : 0;
+function renderPlan(committed) {
+  const percent = monthData.budget ? Math.round(committed / monthData.budget * 100) : 0;
   $('#planGauge').style.setProperty('--progress', `${Math.min(100, percent)}%`);
   $('#planPercent').textContent = `${percent}%`;
-  $('#remainingBudget').textContent = money(Math.max(0, monthData.budget - expense));
+  $('#remainingBudget').textContent = money(Math.max(0, monthData.budget - committed));
   $('#goalValue').textContent = money(monthData.savingsGoal);
+}
+
+function renderBills() {
+  const sorted = [...monthData.bills].sort((a, b) => Number(a.paid) - Number(b.paid) || a.dueDay - b.dueDay);
+  const pending = sorted.filter(bill => !bill.paid);
+  const pendingTotal = pending.reduce((sum, bill) => sum + bill.value, 0);
+  $('#billsSummary').textContent = sorted.length ? `${pending.length} ${pending.length === 1 ? 'pendente' : 'pendentes'} · ${money(pendingTotal)}` : 'Nenhuma conta cadastrada';
+  $('#billList').innerHTML = sorted.length ? sorted.map(bill => {
+    const ownerLabel = bill.paidBy === 'Você' ? 'Seu saldo' : bill.paidBy === 'Namorada' ? 'Saldo dela' : 'Saldo compartilhado';
+    return `<article class="bill-item ${bill.paid ? 'is-paid' : ''}">
+      <label class="bill-check" aria-label="Marcar ${escapeHtml(bill.description)} como ${bill.paid ? 'pendente' : 'paga'}">
+        <input type="checkbox" data-bill-id="${bill.id}" ${bill.paid ? 'checked' : ''}><span aria-hidden="true">✓</span>
+      </label>
+      <div class="bill-main"><strong>${escapeHtml(bill.description)}</strong><span>Vence dia ${bill.dueDay} · ${escapeHtml(bill.category)} · ${ownerLabel}</span></div>
+      <div class="bill-value"><strong>${money(bill.value)}</strong><span>${bill.paid ? 'Paga' : 'Pendente'}</span></div>
+      <button class="bill-remove" type="button" data-bill-remove="${bill.id}" aria-label="Excluir ${escapeHtml(bill.description)}">×</button>
+    </article>`;
+  }).join('') : '<div class="bill-empty"><strong>Cadastre faturas e contas fixas.</strong><br>Elas entram no valor comprometido do mês.</div>';
 }
 
 function renderBalanceChart() {
@@ -274,6 +299,7 @@ function updateOwnerPickerCopy() {
 }
 
 $('#openTransaction').addEventListener('click', () => { updateOwnerPickerCopy(); openDialog('#transactionDialog'); });
+$('#openBill').addEventListener('click', () => openDialog('#billDialog'));
 $('#mobileAdd').addEventListener('click', () => { updateOwnerPickerCopy(); openDialog('#transactionDialog'); });
 $('#settingsButton').addEventListener('click', openSettings);
 $('#mobileSettings').addEventListener('click', openSettings);
@@ -300,6 +326,43 @@ $('#transactionForm').addEventListener('submit', event => {
   if (!value || value < 0) { toast('Informe um valor válido'); return; }
   monthData.transactions.push({ id: crypto.randomUUID(), type: form.get('type'), description: form.get('description').trim(), value, date: form.get('date'), category: form.get('type') === 'income' ? 'Receita' : form.get('category'), paidBy: form.get('paidBy') });
   saveLocal(); render(); event.currentTarget.reset(); $('#expenseType').checked = true; $('#ownerYou').checked = true; updateOwnerPickerCopy(); event.currentTarget.closest('dialog').close();
+});
+
+$('#billForm').addEventListener('submit', event => {
+  if (event.submitter?.value === 'cancel') return;
+  event.preventDefault();
+  const form = new FormData(event.currentTarget);
+  const value = parseCurrency(form.get('value'));
+  const dueDay = Number(form.get('dueDay'));
+  if (!form.get('description').trim() || !value || value < 0 || dueDay < 1 || dueDay > 31) { toast('Preencha a conta, o valor e o vencimento'); return; }
+  monthData.bills.push({ id: crypto.randomUUID(), description: form.get('description').trim(), value, dueDay, category: form.get('category'), paidBy: form.get('paidBy'), paid: false, transactionId: null });
+  saveLocal(false); render(); event.currentTarget.reset(); $('#billOwnerYou').checked = true; event.currentTarget.closest('dialog').close(); toast('Conta adicionada ao mês');
+});
+
+$('#billList').addEventListener('change', event => {
+  const input = event.target.closest('input[data-bill-id]');
+  if (!input) return;
+  const bill = monthData.bills.find(item => item.id === input.dataset.billId);
+  if (!bill) return;
+  bill.paid = input.checked;
+  if (bill.paid) {
+    bill.transactionId = crypto.randomUUID();
+    monthData.transactions.push({ id: bill.transactionId, type: 'expense', description: bill.description, value: bill.value, date: `${monthKey()}-${String(Math.min(bill.dueDay, new Date(cursor.getFullYear(), cursor.getMonth() + 1, 0).getDate())).padStart(2, '0')}`, category: bill.category, paidBy: bill.paidBy, billId: bill.id });
+  } else if (bill.transactionId) {
+    monthData.transactions = monthData.transactions.filter(transaction => transaction.id !== bill.transactionId);
+    bill.transactionId = null;
+  }
+  saveLocal(false); render(); toast(bill.paid ? 'Conta marcada como paga' : 'Conta voltou para pendente');
+});
+
+$('#billList').addEventListener('click', event => {
+  const button = event.target.closest('button[data-bill-remove]');
+  if (!button) return;
+  const bill = monthData.bills.find(item => item.id === button.dataset.billRemove);
+  if (!bill || !confirm(`Excluir “${bill.description}” deste mês?`)) return;
+  monthData.bills = monthData.bills.filter(item => item.id !== bill.id);
+  if (bill.transactionId) monthData.transactions = monthData.transactions.filter(transaction => transaction.id !== bill.transactionId);
+  saveLocal(false); render(); toast('Conta excluída do mês');
 });
 
 $('#planForm').addEventListener('submit', event => {
@@ -331,5 +394,6 @@ const hour = new Date().getHours();
 $('#greeting').textContent = hour < 12 ? 'Bom dia' : hour < 18 ? 'Boa tarde' : 'Boa noite';
 $('#transactionForm').date.valueAsDate = today;
 $('#categorySelect').innerHTML = Object.keys(CATEGORIES).filter(c => c !== 'Receita').map(c => `<option>${c}</option>`).join('');
+$('#billCategorySelect').innerHTML = Object.keys(CATEGORIES).filter(c => c !== 'Receita').map(c => `<option>${c}</option>`).join('');
 loadMonth();
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(() => {});

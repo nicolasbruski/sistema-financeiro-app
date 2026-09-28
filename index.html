@@ -129,6 +129,14 @@
           </div>
           <div class="goal-row"><span>Reserva do casal</span><strong id="goalValue">R$ 0,00</strong></div>
         </section>
+
+        <section class="panel bills-panel" aria-labelledby="billsTitle">
+          <div class="panel-heading bills-heading">
+            <div><h2 id="billsTitle">Contas do mês</h2><p id="billsSummary">Nenhuma conta cadastrada</p></div>
+            <button class="text-button" id="openBill">Nova conta</button>
+          </div>
+          <div class="bill-list" id="billList"></div>
+        </section>
       </div>
     </main>
 
@@ -191,6 +199,28 @@
         <label>Branch<input name="branch"  value="main" /></label>
         <label>Token de acesso<input name="token" type="password" autocomplete="off" placeholder="github_pat_..." /></label>
         <button class="button button-primary full" type="submit">Salvar conexão</button>
+      </form>
+    </dialog>
+
+    <dialog id="billDialog" class="dialog compact-dialog">
+      <form method="dialog" id="billForm">
+        <div class="dialog-head"><div><h2>Nova conta do mês</h2><p>Registre faturas e despesas já previstas.</p></div><button class="icon-button subtle" value="cancel" aria-label="Fechar">×</button></div>
+        <label>Descrição<input name="description" maxlength="60" placeholder="Ex.: Fatura do cartão" /></label>
+        <div class="form-row"><label>Valor<input name="value" inputmode="decimal" placeholder="0,00" /></label><label>Vencimento<input name="dueDay" type="number" min="1" max="31" placeholder="10" /></label></div>
+        <label>Categoria<select name="category" id="billCategorySelect"></select></label>
+        <fieldset class="owner-picker" aria-describedby="billOwnerHelp">
+          <legend>De qual saldo sairá?</legend>
+          <p id="billOwnerHelp">Ao marcar a conta como paga, o valor será descontado deste saldo.</p>
+          <div class="owner-options">
+            <input type="radio" name="paidBy" id="billOwnerYou" value="Você" checked />
+            <label for="billOwnerYou"><strong>Meu</strong><span>Do seu saldo</span></label>
+            <input type="radio" name="paidBy" id="billOwnerPartner" value="Namorada" />
+            <label for="billOwnerPartner"><strong>Dela</strong><span>Do saldo dela</span></label>
+            <input type="radio" name="paidBy" id="billOwnerShared" value="Casal" />
+            <label for="billOwnerShared"><strong>Nosso</strong><span>Do saldo compartilhado</span></label>
+          </div>
+        </fieldset>
+        <button class="button button-primary full" type="submit">Adicionar conta</button>
       </form>
     </dialog>
 
