@@ -51,7 +51,7 @@
 
       <section class="ledger-hero" aria-labelledby="balanceLabel">
         <div class="balance-block">
-          <p id="balanceLabel">Saldo disponível</p>
+          <p id="balanceLabel">Saldo total do mês</p>
           <strong id="balanceValue">R$ 0,00</strong>
           <span id="balanceDelta">Calculando o mês...</span>
         </div>
@@ -61,6 +61,33 @@
         <dl class="hero-totals">
           <div><dt>Entradas</dt><dd class="positive" id="incomeValue">R$ 0,00</dd></div>
           <div><dt>Saídas</dt><dd id="expenseValue">R$ 0,00</dd></div>
+        </dl>
+      </section>
+
+      <section class="ownership-summary" aria-labelledby="ownershipTitle">
+        <div class="ownership-heading">
+          <div>
+            <h2 id="ownershipTitle">Como o saldo está dividido</h2>
+            <p>Veja o que é individual e o que pertence aos dois.</p>
+          </div>
+          <span class="total-note">O total acima soma os três valores</span>
+        </div>
+        <dl class="ownership-balances">
+          <div class="owner-balance">
+            <dt><span class="owner-dot owner-you" aria-hidden="true"></span>Seu dinheiro</dt>
+            <dd id="yourBalance">R$ 0,00</dd>
+            <small>Entradas e saídas marcadas como suas</small>
+          </div>
+          <div class="owner-balance">
+            <dt><span class="owner-dot owner-partner" aria-hidden="true"></span>Dinheiro dela</dt>
+            <dd id="partnerBalance">R$ 0,00</dd>
+            <small>Entradas e saídas da sua namorada</small>
+          </div>
+          <div class="owner-balance shared-balance">
+            <dt><span class="owner-dot owner-shared" aria-hidden="true"></span>Dinheiro compartilhado</dt>
+            <dd id="sharedBalance">R$ 0,00</dd>
+            <small>O valor que pertence a vocês dois</small>
+          </div>
         </dl>
       </section>
 
@@ -122,7 +149,19 @@
         </div>
         <label>Descrição<input name="description" required maxlength="60" placeholder="Ex.: Mercado da semana" /></label>
         <div class="form-row"><label>Valor<input name="value" required inputmode="decimal" placeholder="0,00" /></label><label>Data<input name="date" required type="date" /></label></div>
-        <div class="form-row"><label>Categoria<select name="category" id="categorySelect"></select></label><label>Pago por<select name="paidBy"><option>Você</option><option>Namorada</option><option>Casal</option></select></label></div>
+        <label>Categoria<select name="category" id="categorySelect"></select></label>
+        <fieldset class="owner-picker" aria-describedby="ownerPickerHelp">
+          <legend id="ownerPickerLegend">De quem é este valor?</legend>
+          <p id="ownerPickerHelp">Escolha onde esta movimentação deve aparecer.</p>
+          <div class="owner-options">
+            <input type="radio" name="paidBy" id="ownerYou" value="Você" checked />
+            <label for="ownerYou"><strong>Meu</strong><span>Só no seu saldo</span></label>
+            <input type="radio" name="paidBy" id="ownerPartner" value="Namorada" />
+            <label for="ownerPartner"><strong>Dela</strong><span>Só no saldo dela</span></label>
+            <input type="radio" name="paidBy" id="ownerShared" value="Casal" />
+            <label for="ownerShared"><strong>Nosso</strong><span>No saldo compartilhado</span></label>
+          </div>
+        </fieldset>
         <button class="button button-primary full" type="submit">Salvar movimentação</button>
       </form>
     </dialog>

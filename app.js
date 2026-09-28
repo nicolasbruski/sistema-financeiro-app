@@ -58,6 +58,15 @@ function totals() {
   return { income, expense, balance: monthData.openingBalance + income - expense };
 }
 
+function ownerTotals() {
+  const balances = { 'Você': 0, Namorada: 0, Casal: monthData.openingBalance || 0 };
+  monthData.transactions.forEach(transaction => {
+    const owner = balances[transaction.paidBy] === undefined ? 'Casal' : transaction.paidBy;
+    balances[owner] += transaction.type === 'income' ? transaction.value : -transaction.value;
+  });
+  return balances;
+}
+
 function render() {
   const label = cursor.toLocaleDateString('pt-BR', { month: 'long' });
   $('#monthName').textContent = label.charAt(0).toUpperCase() + label.slice(1);
@@ -66,6 +75,13 @@ function render() {
   $('#balanceValue').textContent = money(balance);
   $('#incomeValue').textContent = money(income);
   $('#expenseValue').textContent = money(expense);
+  const balances = ownerTotals();
+  $('#yourBalance').textContent = money(balances['Você']);
+  $('#partnerBalance').textContent = money(balances.Namorada);
+  $('#sharedBalance').textContent = money(balances.Casal);
+  $('#yourBalance').classList.toggle('is-negative', balances['Você'] < 0);
+  $('#partnerBalance').classList.toggle('is-negative', balances.Namorada < 0);
+  $('#sharedBalance').classList.toggle('is-negative', balances.Casal < 0);
   $('#balanceDelta').textContent = expense <= monthData.budget ? `${money(monthData.budget - expense)} ainda dentro do plano` : `${money(expense - monthData.budget)} acima do plano`;
   renderWeeks(expense);
   renderCategories(expense);
@@ -121,7 +137,9 @@ function renderTransactions() {
   $('#transactionList').innerHTML = visible.length ? visible.map(t => {
     const date = new Date(`${t.date}T12:00:00`).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }).replace('.', '');
     const config = CATEGORIES[t.category] || CATEGORIES.Outros;
-    return `<article class="transaction-item"><span class="transaction-icon" style="color:${config.color};background:${config.color}14">${config.icon}</span><div class="transaction-main"><strong>${escapeHtml(t.description)}</strong><span>${t.category} · ${t.paidBy} · ${date}</span></div><span class="transaction-value ${t.type}">${t.type === 'income' ? '+' : '−'} ${money(t.value)}</span></article>`;
+    const ownerLabel = t.paidBy === 'Você' ? 'Seu' : t.paidBy === 'Namorada' ? 'Dela' : 'Compartilhado';
+    const ownerClass = t.paidBy === 'Você' ? 'you' : t.paidBy === 'Namorada' ? 'partner' : 'shared';
+    return `<article class="transaction-item"><span class="transaction-icon" style="color:${config.color};background:${config.color}14">${config.icon}</span><div class="transaction-main"><strong>${escapeHtml(t.description)}</strong><span>${t.category} <i class="owner-pill ${ownerClass}">${ownerLabel}</i> ${date}</span></div><span class="transaction-value ${t.type}">${t.type === 'income' ? '+' : '−'} ${money(t.value)}</span></article>`;
   }).join('') : '<div class="empty-state"><strong>O mês está pronto para começar.</strong><br>Inclua a primeira movimentação.</div>';
 }
 
@@ -226,8 +244,14 @@ function exportPdf() {
 
 function setMonth(delta) { cursor = new Date(cursor.getFullYear(), cursor.getMonth() + delta, 1); showAll = false; loadMonth(); }
 
-$('#openTransaction').addEventListener('click', () => openDialog('#transactionDialog'));
-$('#mobileAdd').addEventListener('click', () => openDialog('#transactionDialog'));
+function updateOwnerPickerCopy() {
+  const isIncome = $('#incomeType').checked;
+  $('#ownerPickerLegend').textContent = isIncome ? 'De quem é esta entrada?' : 'De qual saldo sai este valor?';
+  $('#ownerPickerHelp').textContent = isIncome ? 'O valor será somado ao saldo escolhido.' : 'O valor será descontado do saldo escolhido.';
+}
+
+$('#openTransaction').addEventListener('click', () => { updateOwnerPickerCopy(); openDialog('#transactionDialog'); });
+$('#mobileAdd').addEventListener('click', () => { updateOwnerPickerCopy(); openDialog('#transactionDialog'); });
 $('#settingsButton').addEventListener('click', openSettings);
 $('#mobileSettings').addEventListener('click', openSettings);
 $('#syncButton').addEventListener('click', syncGithub);
@@ -237,6 +261,7 @@ $('#nextMonth').addEventListener('click', () => setMonth(1));
 $('#monthPicker').addEventListener('click', () => toast('Use as setas para navegar entre os meses'));
 $('#showAllButton').addEventListener('click', () => { showAll = !showAll; renderTransactions(); });
 $('#editPlan').addEventListener('click', () => { $('#planForm').budget.value = (monthData.budget / 100).toFixed(2).replace('.', ','); $('#planForm').goal.value = (monthData.savingsGoal / 100).toFixed(2).replace('.', ','); openDialog('#planDialog'); });
+document.querySelectorAll('input[name="type"]').forEach(input => input.addEventListener('change', updateOwnerPickerCopy));
 
 $('#transactionForm').addEventListener('submit', event => {
   const submitter = event.submitter;
@@ -246,7 +271,7 @@ $('#transactionForm').addEventListener('submit', event => {
   const value = parseCurrency(form.get('value'));
   if (!value || value < 0) { toast('Informe um valor válido'); return; }
   monthData.transactions.push({ id: crypto.randomUUID(), type: form.get('type'), description: form.get('description').trim(), value, date: form.get('date'), category: form.get('type') === 'income' ? 'Receita' : form.get('category'), paidBy: form.get('paidBy') });
-  saveLocal(); render(); event.currentTarget.reset(); $('#expenseType').checked = true; event.currentTarget.closest('dialog').close();
+  saveLocal(); render(); event.currentTarget.reset(); $('#expenseType').checked = true; $('#ownerYou').checked = true; updateOwnerPickerCopy(); event.currentTarget.closest('dialog').close();
 });
 
 $('#planForm').addEventListener('submit', event => {

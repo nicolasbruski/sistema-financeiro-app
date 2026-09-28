@@ -22,7 +22,7 @@ button { color: inherit; }
 :focus-visible { outline: 3px solid rgba(41, 98, 255, 0.35); outline-offset: 2px; }
 
 .sidebar { display: none; }
-.app-shell { width: 100%; max-width: 90rem; margin: 0 auto; padding: 1.25rem 1rem 7rem; }
+.app-shell { width: 100%; max-width: 90rem; margin: 0 auto; overflow-x: clip; padding: 1.25rem 1rem 7rem; }
 .topbar { display: flex; align-items: flex-end; justify-content: space-between; gap: 1rem; margin-bottom: 1.5rem; }
 .topbar > div:first-child { min-width: 0; max-width: 13rem; }
 .greeting { margin: 0 0 0.15rem; color: var(--ink-soft); font-size: 0.875rem; }
@@ -58,6 +58,21 @@ h2 { margin: 0; font-size: 1.05rem; letter-spacing: -0.02em; }
 .hero-totals dd { margin: 0; font: 600 1rem Sora, sans-serif; }
 .hero-totals .positive { color: #55d6b5; }
 
+.ownership-summary { margin-top: 1rem; border: 1px solid rgba(16,35,63,.07); border-radius: var(--radius-md); padding: 1.15rem; background: var(--paper); }
+.ownership-heading { display: flex; flex-direction: column; gap: 0.75rem; margin-bottom: 1rem; }
+.ownership-heading p { margin: 0.2rem 0 0; color: var(--ink-soft); font-size: 0.8rem; }
+.total-note { align-self: flex-start; border-radius: 999px; padding: 0.35rem 0.65rem; background: var(--mist); color: var(--ink-soft); font-size: 0.72rem; }
+.ownership-balances { display: grid; gap: 0; margin: 0; }
+.owner-balance { display: grid; grid-template-columns: 1fr auto; gap: 0.25rem 1rem; padding: 1rem 0; border-top: 1px solid var(--line); }
+.owner-balance dt { display: flex; align-items: center; gap: 0.55rem; color: var(--ink-soft); font-size: 0.82rem; font-weight: 600; }
+.owner-balance dd { margin: 0; font: 600 1rem Sora, sans-serif; }
+.owner-balance small { grid-column: 1 / -1; color: var(--ink-soft); font-size: 0.72rem; }
+.owner-dot { width: 0.65rem; height: 0.65rem; border-radius: 50%; background: var(--blue); }
+.owner-dot.owner-partner { background: var(--coral); }
+.owner-dot.owner-shared { background: var(--green); }
+.shared-balance dd { color: #08755c; }
+.owner-balance dd.is-negative { color: #b54432; }
+
 .dashboard-grid { display: grid; gap: 1rem; margin-top: 1rem; }
 .panel { border: 1px solid rgba(16,35,63,.07); border-radius: var(--radius-md); padding: 1.15rem; background: var(--paper); }
 .panel-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; margin-bottom: 1.25rem; }
@@ -90,7 +105,10 @@ h2 { margin: 0; font-size: 1.05rem; letter-spacing: -0.02em; }
 .transaction-icon { display: grid; place-items: center; width: 2.7rem; height: 2.7rem; border-radius: 0.8rem; background: #edf2ff; font-size: 1.05rem; }
 .transaction-main strong, .transaction-main span { display: block; }
 .transaction-main strong { overflow: hidden; font: 600 0.875rem Inter, sans-serif; text-overflow: ellipsis; white-space: nowrap; }
-.transaction-main span { color: var(--ink-soft); font-size: 0.72rem; }
+.transaction-main > span { display: flex; flex-wrap: wrap; align-items: center; gap: 0.35rem; color: var(--ink-soft); font-size: 0.72rem; }
+.owner-pill { border-radius: 999px; padding: 0.15rem 0.42rem; background: #edf2ff; color: #204ebf; font-style: normal; font-weight: 700; }
+.owner-pill.partner { background: #fff0ed; color: #a94332; }
+.owner-pill.shared { background: #e5f6f1; color: #08755c; }
 .transaction-value { text-align: right; font: 600 0.82rem Sora, sans-serif; }
 .transaction-value.income { color: var(--green); }
 .empty-state { padding: 2.5rem 1rem; color: var(--ink-soft); text-align: center; }
@@ -123,6 +141,16 @@ h2 { margin: 0; font-size: 1.05rem; letter-spacing: -0.02em; }
 .type-toggle input { position: absolute; opacity: 0; pointer-events: none; }
 .type-toggle label { display: grid; place-items: center; min-height: 2.75rem; border-radius: 0.65rem; cursor: pointer; color: var(--ink-soft); }
 .type-toggle input:checked + label { background: white; color: var(--ink); box-shadow: 0 .2rem .7rem rgba(16,35,63,.09); }
+.owner-picker { min-width: 0; margin: 0; border: 0; padding: 0; }
+.owner-picker legend { padding: 0; color: var(--ink); font-size: 0.82rem; font-weight: 700; }
+.owner-picker > p { margin: 0.25rem 0 0.65rem; color: var(--ink-soft); font-size: 0.75rem; }
+.owner-options { display: grid; grid-template-columns: 1fr; gap: 0.5rem; }
+.owner-options input { position: absolute; opacity: 0; pointer-events: none; }
+.owner-options label { display: grid; grid-template-columns: 4rem 1fr; align-items: center; gap: 0.6rem; min-height: 3.4rem; border: 1px solid var(--line); border-radius: 0.75rem; padding: 0.65rem 0.8rem; color: var(--ink); cursor: pointer; }
+.owner-options label strong, .owner-options label span { display: block; }
+.owner-options label span { color: var(--ink-soft); font-size: 0.72rem; font-weight: 500; }
+.owner-options input:checked + label { border-color: var(--blue); background: #edf2ff; box-shadow: inset 0 0 0 1px var(--blue); }
+.owner-options input:focus-visible + label { outline: 3px solid rgba(41,98,255,.25); outline-offset: 2px; }
 .full { width: 100%; }
 .privacy-note { display: grid; gap: 0.2rem; border-left: 3px solid var(--blue); padding: 0.75rem 0.9rem; background: #edf2ff; font-size: 0.78rem; }
 .privacy-note span { color: var(--ink-soft); }
@@ -138,6 +166,16 @@ h2 { margin: 0; font-size: 1.05rem; letter-spacing: -0.02em; }
   .balance-block { align-self: center; }
   .hero-chart-wrap { align-self: end; height: 11rem; margin: 0 -2rem 0 0; }
   .hero-totals { grid-column: 1 / -1; }
+  .ownership-heading { flex-direction: row; align-items: flex-start; justify-content: space-between; }
+  .ownership-balances { grid-template-columns: repeat(3, 1fr); }
+  .owner-balance { display: block; border-top: 0; border-left: 1px solid var(--line); padding: 0 1.25rem; }
+  .owner-balance:first-child { border-left: 0; padding-left: 0; }
+  .owner-balance:last-child { padding-right: 0; }
+  .owner-balance dd { margin-top: 0.55rem; font-size: 1.15rem; }
+  .owner-balance small { display: block; margin-top: 0.35rem; line-height: 1.4; }
+  .owner-options { grid-template-columns: repeat(3, 1fr); }
+  .owner-options label { display: block; min-height: 4.4rem; }
+  .owner-options label span { margin-top: 0.2rem; }
   .dashboard-grid { grid-template-columns: 1.15fr .85fr; }
   .transactions-panel { grid-row: span 2; }
   .dialog form { padding: 1.75rem; }
