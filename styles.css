@@ -39,6 +39,10 @@ h2 { margin: 0; font-size: 1.05rem; letter-spacing: -0.02em; }
 .icon-button { display: inline-grid; place-items: center; width: 3rem; height: 3rem; flex: 0 0 3rem; border: 1px solid var(--line); border-radius: 0.85rem; background: var(--paper); cursor: pointer; font-size: 1.35rem; }
 .icon-button.subtle { background: transparent; box-shadow: none; }
 .period-bar { display: flex; align-items: center; gap: 0.2rem; margin-bottom: 1rem; }
+.month-nav-button { display: inline-grid; place-items: center; width: 2.25rem; height: 2.25rem; flex: 0 0 2.25rem; border: 0; border-radius: 0.65rem; background: transparent; color: var(--ink-soft); cursor: pointer; transition: background-color 160ms ease, color 160ms ease; }
+.month-nav-button:hover { background: var(--paper); color: var(--ink); }
+.month-nav-button:active { background: #e7ecf1; }
+.month-nav-button svg { width: 1rem; height: 1rem; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 .month-label { min-height: 3rem; border: 0; background: transparent; padding: 0 0.35rem; text-align: left; cursor: pointer; }
 .month-label span { display: block; font-size: 1rem; }
 .month-label small { display: block; color: var(--ink-soft); font: 0.75rem Inter, sans-serif; }
@@ -260,7 +264,7 @@ h2 { margin: 0; font-size: 1.05rem; letter-spacing: -0.02em; }
 
 @media print {
   body { padding: 0; background: white; }
-  .sidebar, .mobile-nav, .top-actions, .sync-button, .period-bar .icon-button, .text-button, #editPlan { display: none !important; }
+  .sidebar, .mobile-nav, .top-actions, .sync-button, .month-nav-button, .text-button, #editPlan { display: none !important; }
   .app-shell { max-width: none; padding: 0; }
   .dashboard-grid { grid-template-columns: 1fr 1fr; }
   .panel, .ledger-hero { break-inside: avoid; box-shadow: none; }
