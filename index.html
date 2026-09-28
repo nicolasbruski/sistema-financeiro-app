@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#10233f" />
+    <meta name="description" content="Controle financeiro mensal para duas pessoas." />
+    <title>Nosso Caixa</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Sora:wght@500;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="styles.css" />
+    <link rel="manifest" href="manifest.webmanifest" />
+    <link rel="icon" href="icon.svg" type="image/svg+xml" />
+  </head>
+  <body>
+    <aside class="sidebar" aria-label="Navegação principal">
+      <a class="brand" href="#inicio" aria-label="Nosso Caixa — início">
+        <span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i></span>
+        <span>nosso caixa</span>
+      </a>
+      <nav class="side-nav">
+        <a class="nav-item is-active" href="#inicio" data-view="inicio"><span aria-hidden="true">⌂</span>Visão geral</a>
+        <a class="nav-item" href="#movimentacoes" data-view="movimentacoes"><span aria-hidden="true">↕</span>Movimentações</a>
+        <a class="nav-item" href="#planejamento" data-view="planejamento"><span aria-hidden="true">◎</span>Planejamento</a>
+      </nav>
+      <div class="sidebar-foot">
+        <button class="nav-item button-reset" id="settingsButton"><span aria-hidden="true">⚙</span>Conectar GitHub</button>
+        <span class="sync-note"><i id="syncDot"></i><span id="syncText">Salvo neste aparelho</span></span>
+      </div>
+    </aside>
+
+    <main class="app-shell" id="inicio">
+      <header class="topbar">
+        <div>
+          <p class="greeting" id="greeting">Boa tarde</p>
+          <h1>Como está o nosso mês?</h1>
+        </div>
+        <div class="top-actions">
+          <button class="icon-button" id="exportButton" aria-label="Exportar relatório em PDF" title="Exportar PDF">⇩</button>
+          <button class="button button-primary" id="openTransaction"><span aria-hidden="true">＋</span> Nova movimentação</button>
+        </div>
+      </header>
+
+      <section class="period-bar" aria-label="Selecionar mês">
+        <button class="icon-button subtle" id="previousMonth" aria-label="Mês anterior">‹</button>
+        <button class="month-label" id="monthPicker" aria-label="Escolher mês"><span id="monthName"></span><small id="yearName"></small></button>
+        <button class="icon-button subtle" id="nextMonth" aria-label="Próximo mês">›</button>
+        <button class="sync-button" id="syncButton"><span aria-hidden="true">↻</span><span>Sincronizar</span></button>
+      </section>
+
+      <section class="ledger-hero" aria-labelledby="balanceLabel">
+        <div class="balance-block">
+          <p id="balanceLabel">Saldo disponível</p>
+          <strong id="balanceValue">R$ 0,00</strong>
+          <span id="balanceDelta">Calculando o mês...</span>
+        </div>
+        <div class="hero-chart-wrap">
+          <canvas id="balanceChart" role="img" aria-label="Evolução do saldo durante o mês"></canvas>
+        </div>
+        <dl class="hero-totals">
+          <div><dt>Entradas</dt><dd class="positive" id="incomeValue">R$ 0,00</dd></div>
+          <div><dt>Saídas</dt><dd id="expenseValue">R$ 0,00</dd></div>
+        </dl>
+      </section>
+
+      <div class="dashboard-grid">
+        <section class="panel rhythm-panel" aria-labelledby="rhythmTitle">
+          <div class="panel-heading">
+            <div><h2 id="rhythmTitle">Ritmo do mês</h2><p>Gastos organizados por semana</p></div>
+            <span class="budget-chip" id="budgetChip">Dentro do planejado</span>
+          </div>
+          <div class="week-list" id="weekList"></div>
+        </section>
+
+        <section class="panel category-panel" aria-labelledby="categoryTitle">
+          <div class="panel-heading">
+            <div><h2 id="categoryTitle">Para onde foi</h2><p>Distribuição das despesas</p></div>
+          </div>
+          <div class="category-chart">
+            <div class="donut" id="categoryDonut"><span><strong id="categoryTotal">R$ 0</strong><small>em despesas</small></span></div>
+            <ul class="legend" id="categoryLegend"></ul>
+          </div>
+        </section>
+
+        <section class="panel transactions-panel" id="movimentacoes" aria-labelledby="transactionTitle">
+          <div class="panel-heading transaction-heading">
+            <div><h2 id="transactionTitle">Movimentações recentes</h2><p id="transactionCount">Nenhum lançamento</p></div>
+            <button class="text-button" id="showAllButton">Ver todas</button>
+          </div>
+          <div class="transaction-list" id="transactionList"></div>
+        </section>
+
+        <section class="panel plan-panel" id="planejamento" aria-labelledby="planTitle">
+          <div class="panel-heading">
+            <div><h2 id="planTitle">Plano do mês</h2><p>Limite e reserva combinados</p></div>
+            <button class="icon-button subtle" id="editPlan" aria-label="Editar planejamento">✎</button>
+          </div>
+          <div class="plan-summary">
+            <div class="plan-gauge" id="planGauge"><span id="planPercent">0%</span></div>
+            <div><strong id="remainingBudget">R$ 0,00</strong><p>disponíveis no orçamento</p></div>
+          </div>
+          <div class="goal-row"><span>Reserva do casal</span><strong id="goalValue">R$ 0,00</strong></div>
+        </section>
+      </div>
+    </main>
+
+    <nav class="mobile-nav" aria-label="Navegação móvel">
+      <a class="is-active" href="#inicio"><span>⌂</span>Início</a>
+      <a href="#movimentacoes"><span>↕</span>Movimentos</a>
+      <button id="mobileAdd" aria-label="Nova movimentação">＋</button>
+      <a href="#planejamento"><span>◎</span>Plano</a>
+      <button id="mobileSettings"><span>⚙</span>Ajustes</button>
+    </nav>
+
+    <dialog id="transactionDialog" class="dialog">
+      <form method="dialog" id="transactionForm">
+        <div class="dialog-head"><div><h2>Nova movimentação</h2><p>Inclua o que entrou ou saiu.</p></div><button class="icon-button subtle" value="cancel" aria-label="Fechar">×</button></div>
+        <div class="type-toggle" role="group" aria-label="Tipo de movimentação">
+          <input type="radio" name="type" id="expenseType" value="expense" checked /><label for="expenseType">Saída</label>
+          <input type="radio" name="type" id="incomeType" value="income" /><label for="incomeType">Entrada</label>
+        </div>
+        <label>Descrição<input name="description" required maxlength="60" placeholder="Ex.: Mercado da semana" /></label>
+        <div class="form-row"><label>Valor<input name="value" required inputmode="decimal" placeholder="0,00" /></label><label>Data<input name="date" required type="date" /></label></div>
+        <div class="form-row"><label>Categoria<select name="category" id="categorySelect"></select></label><label>Pago por<select name="paidBy"><option>Você</option><option>Namorada</option><option>Casal</option></select></label></div>
+        <button class="button button-primary full" type="submit">Salvar movimentação</button>
+      </form>
+    </dialog>
+
+    <dialog id="planDialog" class="dialog compact-dialog">
+      <form method="dialog" id="planForm">
+        <div class="dialog-head"><div><h2>Planejamento</h2><p>Defina os combinados deste mês.</p></div><button class="icon-button subtle" value="cancel" aria-label="Fechar">×</button></div>
+        <label>Orçamento mensal<input name="budget" required inputmode="decimal" /></label>
+        <label>Meta para a reserva<input name="goal" required inputmode="decimal" /></label>
+        <button class="button button-primary full" type="submit">Salvar planejamento</button>
+      </form>
+    </dialog>
+
+    <dialog id="settingsDialog" class="dialog compact-dialog">
+      <form method="dialog" id="settingsForm">
+        <div class="dialog-head"><div><h2>Conectar ao GitHub</h2><p>Os dados ficam em um repositório privado.</p></div><button class="icon-button subtle" value="cancel" aria-label="Fechar">×</button></div>
+        <div class="privacy-note"><strong>Seu token não vai para o código.</strong><span>Ele fica somente neste aparelho e precisa de acesso “Contents: read and write” apenas ao repositório de dados.</span></div>
+        <label>Usuário ou organização<input name="owner" required placeholder="seu-usuario" /></label>
+        <label>Repositório de dados<input name="repo" required placeholder="controle-financeiro-dados" /></label>
+        <label>Branch<input name="branch" required value="main" /></label>
+        <label>Token de acesso<input name="token" type="password" autocomplete="off" placeholder="github_pat_..." /></label>
+        <button class="button button-primary full" type="submit">Salvar conexão</button>
+      </form>
+    </dialog>
+
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+    <script src="app.js"></script>
+  </body>
+</html>
