@@ -162,7 +162,7 @@ function renderTransactions() {
   $('#transactionList').innerHTML = sorted.length ? sorted.map(t => {
     const date = new Date(`${t.date}T12:00:00`).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }).replace('.', '');
     const config = CATEGORIES[t.category] || CATEGORIES.Outros;
-    const ownerLabel = t.paidBy === 'Você' ? 'Seu' : t.paidBy === 'Namorada' ? 'Dela' : 'Compartilhado';
+    const ownerLabel = t.paidBy === 'Você' ? 'Nicolas' : t.paidBy === 'Namorada' ? 'Isabella' : 'Compartilhado';
     const ownerClass = t.paidBy === 'Você' ? 'you' : t.paidBy === 'Namorada' ? 'partner' : 'shared';
     return `<article class="transaction-item"><span class="transaction-icon" style="color:${config.color};background:${config.color}14">${config.icon}</span><div class="transaction-main"><strong>${escapeHtml(t.description)}</strong><span>${t.category} <i class="owner-pill ${ownerClass}">${ownerLabel}</i> ${date}</span></div><span class="transaction-value ${t.type}">${t.type === 'income' ? '+' : '−'} ${money(t.value)}</span></article>`;
   }).join('') : '<div class="empty-state"><strong>O mês está pronto para começar.</strong><br>Inclua a primeira movimentação.</div>';
@@ -182,7 +182,7 @@ function renderBills() {
   const pendingTotal = pending.reduce((sum, bill) => sum + bill.value, 0);
   $('#billsSummary').textContent = sorted.length ? `${pending.length} ${pending.length === 1 ? 'pendente' : 'pendentes'} · ${money(pendingTotal)}` : 'Nenhuma conta cadastrada';
   $('#billList').innerHTML = sorted.length ? sorted.map(bill => {
-    const ownerLabel = bill.paidBy === 'Você' ? 'Seu saldo' : bill.paidBy === 'Namorada' ? 'Saldo dela' : 'Saldo compartilhado';
+    const ownerLabel = bill.paidBy === 'Você' ? 'Saldo de Nicolas' : bill.paidBy === 'Namorada' ? 'Saldo de Isabella' : 'Saldo compartilhado';
     return `<article class="bill-item ${bill.paid ? 'is-paid' : ''}">
       <label class="bill-check" aria-label="Marcar ${escapeHtml(bill.description)} como ${bill.paid ? 'pendente' : 'paga'}">
         <input type="checkbox" data-bill-id="${bill.id}" ${bill.paid ? 'checked' : ''}><span aria-hidden="true">✓</span>
