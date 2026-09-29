@@ -166,15 +166,17 @@ h2 { margin: 0; font-size: 1.05rem; letter-spacing: -0.02em; }
 .mobile-nav .is-active { color: white; }
 .mobile-nav > button:nth-child(3) { width: 3.3rem; height: 3.3rem; justify-self: center; border-radius: 1rem; background: var(--blue); color: white; font-size: 1.6rem; }
 
-.dialog { width: calc(100% - 2rem); max-width: 34rem; max-height: calc(100dvh - 2rem); overflow: auto; border: 0; border-radius: var(--radius-lg); padding: 0; color: var(--ink); box-shadow: 0 2rem 5rem rgba(16,35,63,.28); }
+.dialog { width: min(34rem, calc(100vw - 2rem)); max-width: none; max-height: calc(100dvh - 2rem); overflow: auto; border: 0; border-radius: var(--radius-lg); padding: 0; color: var(--ink); box-shadow: 0 2rem 5rem rgba(16,35,63,.28); }
 .dialog::backdrop { background: rgba(9,20,36,.6); backdrop-filter: blur(4px); }
-.dialog form { display: grid; gap: 1rem; padding: 1.25rem; }
+.dialog form { display: grid; width: 100%; min-width: 0; gap: 1rem; padding: 1.25rem; }
 .dialog-head { display: flex; justify-content: space-between; align-items: flex-start; }
+.dialog-head > div { min-width: 0; }
 .dialog-head h2 { font-size: 1.3rem; }
 .dialog-head p { margin: 0.2rem 0 0; color: var(--ink-soft); font-size: 0.85rem; }
 .dialog label { display: grid; gap: 0.4rem; color: var(--ink-soft); font-size: 0.78rem; font-weight: 600; }
-.dialog input, .dialog select { width: 100%; min-height: 3rem; border: 1px solid var(--line); border-radius: 0.75rem; padding: 0 0.85rem; background: white; color: var(--ink); font-size: 1rem; }
-.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+.dialog input, .dialog select { width: 100%; min-width: 0; min-height: 3rem; border: 1px solid var(--line); border-radius: 0.75rem; padding: 0 0.85rem; background: white; color: var(--ink); font-size: 1rem; }
+.form-row { display: grid; min-width: 0; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.75rem; }
+.form-row > label { min-width: 0; }
 .plan-owner-fields { min-width: 0; margin: 0; border: 0; padding: 0; }
 .plan-owner-fields legend { padding: 0; font-size: 0.82rem; font-weight: 700; }
 .plan-owner-fields > p { margin: 0.25rem 0 0.75rem; color: var(--ink-soft); font-size: 0.75rem; }
@@ -200,6 +202,14 @@ h2 { margin: 0; font-size: 1.05rem; letter-spacing: -0.02em; }
 #settingsForm { max-height: calc(100dvh - 2rem); grid-template-rows: auto minmax(0, 1fr) auto; overflow: hidden; }
 .settings-fields { display: grid; gap: 1rem; overflow-y: auto; padding: 0 0.25rem 0.25rem; }
 .settings-submit { min-height: 3rem; }
+#billDialog { width: min(42rem, calc(100vw - 2rem)); overflow: hidden; }
+#billForm { max-height: calc(100dvh - 2rem); grid-template-rows: auto minmax(0, 1fr) auto; overflow: hidden; }
+.bill-fields { display: grid; gap: 1rem; min-width: 0; overflow-x: hidden; overflow-y: auto; padding: 0 0.65rem 0.25rem 0; scrollbar-color: #aab5c3 transparent; scrollbar-width: thin; }
+.bill-fields > * { min-width: 0; }
+.bill-fields::-webkit-scrollbar { width: 0.5rem; }
+.bill-fields::-webkit-scrollbar-track { background: transparent; }
+.bill-fields::-webkit-scrollbar-thumb { border: 2px solid transparent; border-radius: 999px; background: #aab5c3; background-clip: padding-box; }
+.bill-fields::-webkit-scrollbar-thumb:hover { background: #7f8da0; background-clip: padding-box; }
 .toast { position: fixed; z-index: 50; right: 1rem; bottom: 6rem; left: 1rem; transform: translateY(1rem); border-radius: 0.8rem; padding: 0.85rem 1rem; background: var(--ink); color: white; opacity: 0; pointer-events: none; text-align: center; transition: .2s ease; }
 .toast.show { transform: translateY(0); opacity: 1; }
 
