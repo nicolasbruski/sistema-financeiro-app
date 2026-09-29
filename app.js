@@ -88,8 +88,8 @@ function materializeScheduledItems() {
   appConfig.installmentPlans.forEach(plan => {
     const index = monthsBetween(plan.firstMonth, key);
     if (index < 0 || index >= plan.installments || monthData.bills.some(bill => bill.installmentPlanId === plan.id && bill.installmentNumber === index + 1)) return;
-    const base = Math.floor(plan.totalValue / plan.installments);
-    const value = index === plan.installments - 1 ? plan.totalValue - base * (plan.installments - 1) : base;
+    const base = plan.installmentValue || Math.floor(plan.totalValue / plan.installments);
+    const value = plan.installmentValue ? base : (index === plan.installments - 1 ? plan.totalValue - base * (plan.installments - 1) : base);
     monthData.bills.push({ id: `inst-${plan.id}-${index + 1}`, description: `${plan.description} (${index + 1}/${plan.installments})`, value,
       dueDay: plan.dueDay, category: plan.category, paidBy: plan.paidBy, scope: plan.scope || 'individual', splitYou: plan.splitYou ?? 50,
       paid: false, transactionId: null, installmentPlanId: plan.id, installmentNumber: index + 1, installmentCount: plan.installments, cardName: plan.cardName });
@@ -157,7 +157,7 @@ function render() {
   const summary = totals(), balances = ownerTotals(), pending = pendingBillsTotal(), committed = summary.expense + pending, projected = summary.balance - pending;
   const name = new Intl.DateTimeFormat('pt-BR', { month: 'long' }).format(cursor);
   $('#monthName').textContent = name.charAt(0).toUpperCase() + name.slice(1); $('#yearName').textContent = cursor.getFullYear();
-  $('#balanceValue').textContent = money(summary.balance); $('#incomeValue').textContent = money(summary.income); $('#expenseValue').textContent = money(summary.expense); $('#pendingValue').textContent = money(pending);
+  $('#balanceValue').textContent = money(summary.balance); $('#incomeValue').textContent = money(summary.income); $('#expenseValue').textContent = money(summary.expense); if ($('#pendingValue')) $('#pendingValue').textContent = money(pending);
   $('#projectedValue').textContent = money(projected); $('#projectedValue').classList.toggle('negative', projected < 0);
   $('#balanceDelta').textContent = monthData.budget ? (committed <= monthData.budget ? `${money(monthData.budget - committed)} livres no plano` : `${money(committed - monthData.budget)} acima do plano`) : 'Defina um limite no planejamento';
   $('#yourBalance').textContent = money(balances['Você']); $('#partnerBalance').textContent = money(balances.Namorada); $('#sharedBalance').textContent = money(balances.Casal);
@@ -217,7 +217,7 @@ function renderBills() {
   const sorted = [...monthData.bills].sort((a, b) => Number(a.paid) - Number(b.paid) || a.dueDay - b.dueDay), pending = sorted.filter(bill => !bill.paid);
   $('#billsSummary').textContent = sorted.length ? `${pending.length} ${pending.length === 1 ? 'pendente' : 'pendentes'} · ${money(pendingBillsTotal())}` : 'Nenhuma conta cadastrada';
   $('#billList').innerHTML = sorted.length ? sorted.map(bill => {
-    const tags = [bill.recurrenceId ? 'Recorrente' : '', bill.cardName || '', bill.carriedFrom ? `Pendente de ${bill.carriedFrom}` : ''].filter(Boolean);
+    const tags = [bill.recurrenceId ? 'Recorrente' : '', bill.installmentPlanId ? `Parcela ${bill.installmentNumber} de ${bill.installmentCount}` : '', bill.cardName || '', bill.carriedFrom ? `Pendente de ${bill.carriedFrom}` : ''].filter(Boolean);
     return `<article class="bill-item ${bill.paid ? 'is-paid' : ''}"><label class="bill-check" aria-label="Marcar ${escapeHtml(bill.description)} como ${bill.paid ? 'pendente' : 'paga'}"><input type="checkbox" data-bill-id="${bill.id}" ${bill.paid ? 'checked' : ''} ${monthData.status === 'closed' ? 'disabled' : ''}><span aria-hidden="true">✓</span></label><div class="bill-main"><strong>${escapeHtml(bill.description)}</strong><span>Vence dia ${bill.dueDay} · ${escapeHtml(bill.category)} · ${ownerLabel(bill.paidBy)}${tags.length ? ` · ${escapeHtml(tags.join(' · '))}` : ''}</span></div><div class="bill-value"><strong>${money(bill.value)}</strong><span>${bill.paid ? 'Paga' : 'Pendente'}</span></div><div class="row-actions"><button type="button" data-bill-action="edit" data-id="${bill.id}">Editar</button><button type="button" data-bill-action="delete" data-id="${bill.id}">Excluir</button></div></article>`;
   }).join('') : '<div class="bill-empty"><strong>Cadastre faturas e contas fixas.</strong><br>Elas entram no valor comprometido e na previsão do mês.</div>';
 }
@@ -299,7 +299,25 @@ function openBill(bill = null) {
   if (!ensureOpenMonth()) return;
   const form = $('#billForm'); form.reset(); form.dataset.editId = bill?.id || ''; form.querySelector('h2').textContent = bill ? 'Editar conta' : 'Nova conta do mês';
   if (bill) { form.elements.description.value = bill.description; setFormCurrency(form.elements.value, bill.value); form.elements.dueDay.value = bill.dueDay; form.elements.category.value = bill.category; form.elements.paidBy.value = bill.paidBy; form.elements.scope.value = bill.scope || 'individual'; form.elements.recurring.checked = Boolean(bill.recurrenceId); }
+  if (bill) {
+    form.elements.installments.value = bill.installmentCount || 1;
+    if (bill.installmentPlanId) form.elements.description.value = bill.description.replace(/ \(\d+\/\d+\)$/, '');
+  }
+  updateBillScheduleFields();
   openDialog('#billDialog');
+}
+function updateBillScheduleFields() {
+  const form = $('#billForm');
+  const installments = Number(form.elements.installments.value) || 1;
+  const editingInstallment = Boolean(form.dataset.editId && monthData.bills.find(item => item.id === form.dataset.editId)?.installmentPlanId);
+  form.elements.installments.disabled = editingInstallment;
+  form.elements.recurring.disabled = installments > 1 || editingInstallment;
+  if (installments > 1 || editingInstallment) form.elements.recurring.checked = false;
+  $('#billInstallmentsHelp').textContent = editingInstallment
+    ? 'A quantidade original de parcelas não pode ser alterada.'
+    : installments > 1
+      ? `${installments} contas de ${form.elements.value.value || 'mesmo valor'}, uma por mês.`
+      : 'Use 1 para uma conta sem parcelas. As demais vencem nos meses seguintes.';
 }
 function renderCards() {
   $('#cardList').innerHTML = appConfig.cards.length ? appConfig.cards.map(card => `<div class="card-item"><div><strong>${escapeHtml(card.name)}</strong><span>${ownerLabel(card.owner)} · fecha dia ${card.closingDay} · vence dia ${card.dueDay}</span></div><button type="button" data-card-remove="${card.id}" aria-label="Excluir ${escapeHtml(card.name)}">×</button></div>`).join('') : '<div class="bill-empty">Nenhum cartão cadastrado.</div>';
@@ -383,10 +401,10 @@ function syncRoute() {
 
 $('#openTransaction').addEventListener('click', () => openTransaction());
 $('#openBill').addEventListener('click', () => openBill());
-$('#quickExpense').addEventListener('click', () => openTransaction());
-$('#quickIncome').addEventListener('click', () => { openTransaction(); $('#incomeType').checked = true; updateTransactionForm(); });
-$('#quickBill').addEventListener('click', () => openBill());
-$('#quickPlan').addEventListener('click', () => $('#editPlan').click());
+$('#quickExpense')?.addEventListener('click', () => openTransaction());
+$('#quickIncome')?.addEventListener('click', () => { openTransaction(); $('#incomeType').checked = true; updateTransactionForm(); });
+$('#quickBill')?.addEventListener('click', () => openBill());
+$('#quickPlan')?.addEventListener('click', () => $('#editPlan').click());
 $('#openCards').addEventListener('click', openCards);
 $('#openInstallment').addEventListener('click', openInstallment);
 $('#mobileAdd').addEventListener('click', () => { location.hash = 'gastos'; openTransaction(); });
@@ -431,21 +449,35 @@ $('#transactionList').addEventListener('click', event => {
 
 $('#billForm').addEventListener('submit', event => {
   if (event.submitter?.value === 'cancel') return;
-  event.preventDefault(); const formElement = event.currentTarget, form = new FormData(formElement), value = parseCurrency(form.get('value')), dueDay = Number(form.get('dueDay')), description = String(form.get('description') || '').trim();
-  if (!description || !value || value < 0 || dueDay < 1 || dueDay > 31) { toast('Preencha a conta, o valor e o vencimento'); return; }
+  event.preventDefault(); const formElement = event.currentTarget, form = new FormData(formElement), value = parseCurrency(form.get('value')), dueDay = Number(form.get('dueDay')), description = String(form.get('description') || '').trim(), installments = Number(form.get('installments') || formElement.elements.installments.value || 1);
+  if (!description || !value || value < 0 || dueDay < 1 || dueDay > 31 || installments < 1 || installments > 60) { toast('Preencha a conta, o valor, o vencimento e as parcelas'); return; }
   const data = { description, value, dueDay, category: form.get('category'), paidBy: form.get('paidBy'), scope: form.get('scope') || 'individual', splitYou: 50 }, editId = formElement.dataset.editId;
   if (editId) {
-    const bill = monthData.bills.find(item => item.id === editId); if (!bill) return; Object.assign(bill, data);
-    if (bill.transactionId) { const transaction = monthData.transactions.find(item => item.id === bill.transactionId); if (transaction) Object.assign(transaction, { description, value, category: data.category, paidBy: data.paidBy, scope: data.scope, date: `${monthKey()}-${String(Math.min(dueDay, new Date(cursor.getFullYear(), cursor.getMonth() + 1, 0).getDate())).padStart(2, '0')}` }); }
+    const bill = monthData.bills.find(item => item.id === editId); if (!bill) return;
+    Object.assign(bill, data, { description: bill.installmentPlanId ? `${description} (${bill.installmentNumber}/${bill.installmentCount})` : description });
+    if (bill.transactionId) { const transaction = monthData.transactions.find(item => item.id === bill.transactionId); if (transaction) Object.assign(transaction, { description: bill.description, value, category: data.category, paidBy: data.paidBy, scope: data.scope, date: `${monthKey()}-${String(Math.min(dueDay, new Date(cursor.getFullYear(), cursor.getMonth() + 1, 0).getDate())).padStart(2, '0')}` }); }
+    if (bill.installmentPlanId && confirm('Aplicar esta alteração também às próximas parcelas?')) { const plan = appConfig.installmentPlans.find(item => item.id === bill.installmentPlanId); if (plan) Object.assign(plan, data, { description, installmentValue: value, totalValue: value * plan.installments }); saveConfig(false); }
     if (bill.recurrenceId && form.get('recurring') && confirm('Aplicar esta alteração também aos próximos meses?')) { const template = appConfig.recurringBills.find(item => item.id === bill.recurrenceId); if (template) Object.assign(template, data); saveConfig(false); }
     if (!bill.recurrenceId && form.get('recurring')) { const recurrence = { id: uid(), ...data, startMonth: monthKey(), endMonth: null, active: true }; appConfig.recurringBills.push(recurrence); bill.recurrenceId = recurrence.id; bill.generatedMonth = monthKey(); saveConfig(false); }
     if (bill.recurrenceId && !form.get('recurring')) { const template = appConfig.recurringBills.find(item => item.id === bill.recurrenceId); if (template) { template.active = false; template.endMonth = monthKey(); } delete bill.recurrenceId; delete bill.generatedMonth; saveConfig(false); }
   } else {
-    const bill = { id: uid(), ...data, paid: false, transactionId: null };
-    if (form.get('recurring')) { const recurrence = { id: uid(), ...data, startMonth: monthKey(), endMonth: null, active: true }; appConfig.recurringBills.push(recurrence); bill.recurrenceId = recurrence.id; bill.generatedMonth = monthKey(); saveConfig(false); }
-    monthData.bills.push(bill);
+    if (installments > 1) {
+      appConfig.installmentPlans.push({ id: uid(), description, installmentValue: value, totalValue: value * installments, installments, firstMonth: monthKey(), dueDay, category: data.category, paidBy: data.paidBy, scope: data.scope, splitYou: 50 });
+      saveConfig(false); materializeScheduledItems();
+    } else {
+      const bill = { id: uid(), ...data, paid: false, transactionId: null };
+      if (form.get('recurring')) { const recurrence = { id: uid(), ...data, startMonth: monthKey(), endMonth: null, active: true }; appConfig.recurringBills.push(recurrence); bill.recurrenceId = recurrence.id; bill.generatedMonth = monthKey(); saveConfig(false); }
+      monthData.bills.push(bill);
+    }
   }
-  saveLocal(false); render(); formElement.closest('dialog').close(); toast(editId ? 'Conta atualizada' : 'Conta adicionada ao mês');
+  saveLocal(false); render(); formElement.closest('dialog').close(); toast(editId ? 'Conta atualizada' : installments > 1 ? `${installments} parcelas programadas` : 'Conta adicionada ao mês');
+});
+
+$('#billForm').elements.installments.addEventListener('input', updateBillScheduleFields);
+$('#billForm').elements.value.addEventListener('input', updateBillScheduleFields);
+$('#billForm').elements.recurring.addEventListener('change', event => {
+  if (event.target.checked) $('#billForm').elements.installments.value = 1;
+  updateBillScheduleFields();
 });
 
 $('#billList').addEventListener('change', event => {
@@ -462,6 +494,7 @@ $('#billList').addEventListener('click', event => {
   if (button.dataset.billAction === 'edit') openBill(bill);
   if (button.dataset.billAction === 'delete' && confirm(`Excluir “${bill.description}” deste mês?`)) {
     if (bill.recurrenceId && confirm('Encerrar também a recorrência nos próximos meses?')) { const template = appConfig.recurringBills.find(item => item.id === bill.recurrenceId); if (template) { template.active = false; template.endMonth = addMonths(monthKey(), -1); } saveConfig(false); }
+    if (bill.installmentPlanId && confirm('Excluir também as parcelas dos próximos meses?')) { appConfig.installmentPlans = appConfig.installmentPlans.filter(item => item.id !== bill.installmentPlanId); saveConfig(false); }
     monthData.bills = monthData.bills.filter(item => item.id !== bill.id); if (bill.transactionId) monthData.transactions = monthData.transactions.filter(item => item.id !== bill.transactionId);
     saveLocal(false); render(); toast('Conta excluída');
   }

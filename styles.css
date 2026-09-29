@@ -264,6 +264,7 @@ h2 { margin: 0; font-size: 1.05rem; letter-spacing: -0.02em; }
 .dialog-fields::-webkit-scrollbar-thumb:hover { background: #7f8da0; background-clip: padding-box; }
 .check-row { grid-template-columns: auto 1fr !important; align-items: flex-start; gap: 0.7rem !important; min-height: 3rem; border: 1px solid var(--line); border-radius: 0.75rem; padding: 0.75rem; color: var(--ink) !important; cursor: pointer; }
 .check-row input { width: 1.25rem !important; min-height: 1.25rem !important; margin: 0.15rem 0 0; }
+.check-row:has(input:disabled) { cursor: not-allowed; opacity: 0.6; }
 .check-row span, .check-row strong, .check-row small { display: block; }
 .check-row small { margin-top: 0.15rem; color: var(--ink-soft); font-weight: 500; }
 .card-list { display: grid; gap: 0.5rem; max-height: 12rem; overflow-y: auto; }

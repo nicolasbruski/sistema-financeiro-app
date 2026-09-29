@@ -275,7 +275,8 @@
         <div class="dialog-head"><div><h2>Nova conta do mês</h2><p>Registre faturas e despesas já previstas.</p></div><button class="icon-button subtle" value="cancel" aria-label="Fechar">×</button></div>
         <div class="dialog-fields">
           <label>Descrição<input name="description" maxlength="60" placeholder="Ex.: Fatura do cartão" /></label>
-          <div class="form-row"><label>Valor<input name="value" inputmode="decimal" placeholder="0,00" /></label><label>Vencimento<input name="dueDay" type="number" min="1" max="31" placeholder="10" /></label></div>
+          <div class="form-row"><label>Valor da parcela<input name="value" inputmode="decimal" placeholder="0,00" /></label><label>Vencimento<input name="dueDay" type="number" min="1" max="31" placeholder="10" /></label></div>
+          <label>Quantidade de parcelas<input name="installments" type="number" min="1" max="60" value="1" aria-describedby="billInstallmentsHelp" /><small id="billInstallmentsHelp">Use 1 para uma conta sem parcelas. As demais vencem nos meses seguintes.</small></label>
           <label>Categoria<select name="category" id="billCategorySelect"></select></label>
           <fieldset class="sharing-fields">
             <legend>Para quem é esta conta?</legend>
