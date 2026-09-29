@@ -207,33 +207,35 @@
     <dialog id="transactionDialog" class="dialog">
       <form method="dialog" id="transactionForm">
         <div class="dialog-head"><div><h2>Nova movimentação</h2><p>Inclua o que entrou ou saiu.</p></div><button class="icon-button subtle" value="cancel" aria-label="Fechar">×</button></div>
-        <div class="type-toggle" role="group" aria-label="Tipo de movimentação">
-          <input type="radio" name="type" id="expenseType" value="expense" checked /><label for="expenseType">Saída</label>
-          <input type="radio" name="type" id="incomeType" value="income" /><label for="incomeType">Entrada</label>
+        <div class="dialog-fields">
+          <div class="type-toggle" role="group" aria-label="Tipo de movimentação">
+            <input type="radio" name="type" id="expenseType" value="expense" checked /><label for="expenseType">Saída</label>
+            <input type="radio" name="type" id="incomeType" value="income" /><label for="incomeType">Entrada</label>
+          </div>
+          <label>Descrição<input name="description" maxlength="60" placeholder="Ex.: Mercado da semana" /></label>
+          <div class="form-row"><label>Valor<input name="value" inputmode="decimal" placeholder="0,00" /></label><label>Data<input name="date" type="date" /></label></div>
+          <label>Categoria<select name="category" id="categorySelect"></select></label>
+          <fieldset class="owner-picker" aria-describedby="ownerPickerHelp">
+            <legend id="ownerPickerLegend">De quem é este valor?</legend>
+            <p id="ownerPickerHelp">Escolha onde esta movimentação deve aparecer.</p>
+            <div class="owner-options">
+              <input type="radio" name="paidBy" id="ownerYou" value="Você" checked />
+              <label for="ownerYou"><strong>Nicolas</strong><span>Só no saldo de Nicolas</span></label>
+              <input type="radio" name="paidBy" id="ownerPartner" value="Namorada" />
+              <label for="ownerPartner"><strong>Isabella</strong><span>Só no saldo de Isabella</span></label>
+              <input type="radio" name="paidBy" id="ownerShared" value="Casal" />
+              <label for="ownerShared"><strong>Nosso</strong><span>No saldo compartilhado</span></label>
+            </div>
+          </fieldset>
+          <fieldset class="sharing-fields" id="sharingFields">
+            <legend>Para quem foi esta despesa?</legend>
+            <div class="type-toggle">
+              <input type="radio" name="scope" id="individualScope" value="individual" checked /><label for="individualScope">Individual</label>
+              <input type="radio" name="scope" id="sharedScope" value="shared" /><label for="sharedScope">Compartilhada</label>
+            </div>
+            <label id="splitLabel" hidden>Parte de Nicolas (%)<input name="splitYou" type="number" min="0" max="100" value="50" /></label>
+          </fieldset>
         </div>
-        <label>Descrição<input name="description" maxlength="60" placeholder="Ex.: Mercado da semana" /></label>
-        <div class="form-row"><label>Valor<input name="value" inputmode="decimal" placeholder="0,00" /></label><label>Data<input name="date" type="date" /></label></div>
-        <label>Categoria<select name="category" id="categorySelect"></select></label>
-        <fieldset class="owner-picker" aria-describedby="ownerPickerHelp">
-          <legend id="ownerPickerLegend">De quem é este valor?</legend>
-          <p id="ownerPickerHelp">Escolha onde esta movimentação deve aparecer.</p>
-          <div class="owner-options">
-            <input type="radio" name="paidBy" id="ownerYou" value="Você" checked />
-            <label for="ownerYou"><strong>Nicolas</strong><span>Só no saldo de Nicolas</span></label>
-            <input type="radio" name="paidBy" id="ownerPartner" value="Namorada" />
-            <label for="ownerPartner"><strong>Isabella</strong><span>Só no saldo de Isabella</span></label>
-            <input type="radio" name="paidBy" id="ownerShared" value="Casal" />
-            <label for="ownerShared"><strong>Nosso</strong><span>No saldo compartilhado</span></label>
-          </div>
-        </fieldset>
-        <fieldset class="sharing-fields" id="sharingFields">
-          <legend>Para quem foi esta despesa?</legend>
-          <div class="type-toggle">
-            <input type="radio" name="scope" id="individualScope" value="individual" checked /><label for="individualScope">Individual</label>
-            <input type="radio" name="scope" id="sharedScope" value="shared" /><label for="sharedScope">Compartilhada</label>
-          </div>
-          <label id="splitLabel" hidden>Parte de Nicolas (%)<input name="splitYou" type="number" min="0" max="100" value="50" /></label>
-        </fieldset>
         <button class="button button-primary full" type="submit">Salvar movimentação</button>
       </form>
     </dialog>
@@ -271,7 +273,7 @@
     <dialog id="billDialog" class="dialog compact-dialog">
       <form method="dialog" id="billForm">
         <div class="dialog-head"><div><h2>Nova conta do mês</h2><p>Registre faturas e despesas já previstas.</p></div><button class="icon-button subtle" value="cancel" aria-label="Fechar">×</button></div>
-        <div class="bill-fields">
+        <div class="dialog-fields">
           <label>Descrição<input name="description" maxlength="60" placeholder="Ex.: Fatura do cartão" /></label>
           <div class="form-row"><label>Valor<input name="value" inputmode="decimal" placeholder="0,00" /></label><label>Vencimento<input name="dueDay" type="number" min="1" max="31" placeholder="10" /></label></div>
           <label>Categoria<select name="category" id="billCategorySelect"></select></label>

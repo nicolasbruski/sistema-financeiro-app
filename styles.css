@@ -254,14 +254,14 @@ h2 { margin: 0; font-size: 1.05rem; letter-spacing: -0.02em; }
 #settingsForm { max-height: calc(100dvh - 2rem); grid-template-rows: auto minmax(0, 1fr) auto; overflow: hidden; }
 .settings-fields { display: grid; gap: 1rem; overflow-y: auto; padding: 0 0.25rem 0.25rem; }
 .settings-submit { min-height: 3rem; }
-#billDialog { width: min(42rem, calc(100vw - 2rem)); overflow: hidden; }
-#billForm { max-height: calc(100dvh - 2rem); grid-template-rows: auto minmax(0, 1fr) auto; overflow: hidden; }
-.bill-fields { display: grid; gap: 1rem; min-width: 0; overflow-x: hidden; overflow-y: auto; padding: 0 0.65rem 0.25rem 0; scrollbar-color: #aab5c3 transparent; scrollbar-width: thin; }
-.bill-fields > * { min-width: 0; }
-.bill-fields::-webkit-scrollbar { width: 0.5rem; }
-.bill-fields::-webkit-scrollbar-track { background: transparent; }
-.bill-fields::-webkit-scrollbar-thumb { border: 2px solid transparent; border-radius: 999px; background: #aab5c3; background-clip: padding-box; }
-.bill-fields::-webkit-scrollbar-thumb:hover { background: #7f8da0; background-clip: padding-box; }
+#transactionDialog, #billDialog { width: min(42rem, calc(100vw - 2rem)); overflow: hidden; }
+#transactionForm, #billForm { max-height: calc(100dvh - 2rem); grid-template-rows: auto minmax(0, 1fr) auto; overflow: hidden; }
+.dialog-fields { display: grid; gap: 1rem; min-width: 0; overflow-x: hidden; overflow-y: auto; padding: 0 0.65rem 0.25rem 0; scrollbar-color: #aab5c3 transparent; scrollbar-width: thin; }
+.dialog-fields > * { min-width: 0; }
+.dialog-fields::-webkit-scrollbar { width: 0.5rem; }
+.dialog-fields::-webkit-scrollbar-track { background: transparent; }
+.dialog-fields::-webkit-scrollbar-thumb { border: 2px solid transparent; border-radius: 999px; background: #aab5c3; background-clip: padding-box; }
+.dialog-fields::-webkit-scrollbar-thumb:hover { background: #7f8da0; background-clip: padding-box; }
 .check-row { grid-template-columns: auto 1fr !important; align-items: flex-start; gap: 0.7rem !important; min-height: 3rem; border: 1px solid var(--line); border-radius: 0.75rem; padding: 0.75rem; color: var(--ink) !important; cursor: pointer; }
 .check-row input { width: 1.25rem !important; min-height: 1.25rem !important; margin: 0.15rem 0 0; }
 .check-row span, .check-row strong, .check-row small { display: block; }
