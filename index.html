@@ -56,6 +56,7 @@
       </section>
 
       <section class="app-view" id="inicio" data-page="dashboard">
+        <div class="overview-layout">
         <section class="ledger-hero" aria-labelledby="balanceLabel">
           <div class="balance-block">
             <p id="balanceLabel">Saldo total do mês</p>
@@ -69,6 +70,7 @@
             <div><dt>Entradas</dt><dd class="positive" id="incomeValue">R$ 0,00</dd></div>
             <div><dt>Saídas</dt><dd id="expenseValue">R$ 0,00</dd></div>
             <div><dt>Após contas pendentes</dt><dd id="projectedValue">R$ 0,00</dd></div>
+            <div><dt>Contas pendentes</dt><dd id="pendingValue">R$ 0,00</dd></div>
           </dl>
         </section>
 
@@ -97,6 +99,32 @@
               <small>O valor que pertence a vocês dois</small>
             </div>
           </dl>
+        </section>
+        </div>
+
+        <section class="quick-actions" aria-labelledby="quickActionsTitle">
+          <div class="quick-actions-heading">
+            <h2 id="quickActionsTitle">O que você quer registrar?</h2>
+            <p>Atalhos para manter o mês em dia</p>
+          </div>
+          <div class="quick-actions-list">
+            <button type="button" id="quickExpense">
+              <span class="quick-action-icon expense-icon" aria-hidden="true">−</span>
+              <span><strong>Nova saída</strong><small>Compra ou gasto</small></span>
+            </button>
+            <button type="button" id="quickIncome">
+              <span class="quick-action-icon income-icon" aria-hidden="true">+</span>
+              <span><strong>Nova entrada</strong><small>Salário ou receita</small></span>
+            </button>
+            <button type="button" id="quickBill">
+              <span class="quick-action-icon bill-icon" aria-hidden="true">✓</span>
+              <span><strong>Nova conta</strong><small>Pagamento previsto</small></span>
+            </button>
+            <button type="button" id="quickPlan">
+              <span class="quick-action-icon plan-icon" aria-hidden="true">◎</span>
+              <span><strong>Ajustar plano</strong><small>Limite e reserva</small></span>
+            </button>
+          </div>
         </section>
 
         <div class="dashboard-grid">

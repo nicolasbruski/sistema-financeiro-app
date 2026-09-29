@@ -157,7 +157,7 @@ function render() {
   const summary = totals(), balances = ownerTotals(), pending = pendingBillsTotal(), committed = summary.expense + pending, projected = summary.balance - pending;
   const name = new Intl.DateTimeFormat('pt-BR', { month: 'long' }).format(cursor);
   $('#monthName').textContent = name.charAt(0).toUpperCase() + name.slice(1); $('#yearName').textContent = cursor.getFullYear();
-  $('#balanceValue').textContent = money(summary.balance); $('#incomeValue').textContent = money(summary.income); $('#expenseValue').textContent = money(summary.expense);
+  $('#balanceValue').textContent = money(summary.balance); $('#incomeValue').textContent = money(summary.income); $('#expenseValue').textContent = money(summary.expense); $('#pendingValue').textContent = money(pending);
   $('#projectedValue').textContent = money(projected); $('#projectedValue').classList.toggle('negative', projected < 0);
   $('#balanceDelta').textContent = monthData.budget ? (committed <= monthData.budget ? `${money(monthData.budget - committed)} livres no plano` : `${money(committed - monthData.budget)} acima do plano`) : 'Defina um limite no planejamento';
   $('#yourBalance').textContent = money(balances['Você']); $('#partnerBalance').textContent = money(balances.Namorada); $('#sharedBalance').textContent = money(balances.Casal);
@@ -254,7 +254,7 @@ function renderBalanceChart() {
 }
 function updateClosedState() {
   const closed = monthData.status === 'closed'; $('#closeMonthButton').textContent = closed ? 'Reabrir mês' : 'Fechar mês';
-  ['#openTransaction', '#openBill', '#openInstallment', '#mobileAdd', '#editPlan'].forEach(selector => { if ($(selector)) $(selector).disabled = closed; }); document.body.classList.toggle('month-closed', closed);
+  ['#openTransaction', '#openBill', '#openInstallment', '#mobileAdd', '#editPlan', '#quickExpense', '#quickIncome', '#quickBill', '#quickPlan'].forEach(selector => { if ($(selector)) $(selector).disabled = closed; }); document.body.classList.toggle('month-closed', closed);
 }
 function formatMonthShort(key) { return new Intl.DateTimeFormat('pt-BR', { month: 'short' }).format(parseMonthKey(key)).replace('.', ''); }
 function formatMonthLabel(key) { return new Intl.DateTimeFormat('pt-BR', { month: 'long', year: 'numeric' }).format(parseMonthKey(key)); }
@@ -383,6 +383,10 @@ function syncRoute() {
 
 $('#openTransaction').addEventListener('click', () => openTransaction());
 $('#openBill').addEventListener('click', () => openBill());
+$('#quickExpense').addEventListener('click', () => openTransaction());
+$('#quickIncome').addEventListener('click', () => { openTransaction(); $('#incomeType').checked = true; updateTransactionForm(); });
+$('#quickBill').addEventListener('click', () => openBill());
+$('#quickPlan').addEventListener('click', () => $('#editPlan').click());
 $('#openCards').addEventListener('click', openCards);
 $('#openInstallment').addEventListener('click', openInstallment);
 $('#mobileAdd').addEventListener('click', () => { location.hash = 'gastos'; openTransaction(); });

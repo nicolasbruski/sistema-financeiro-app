@@ -364,3 +364,153 @@ h2 { margin: 0; font-size: 1.05rem; letter-spacing: -0.02em; }
   .panel, .ledger-hero { break-inside: avoid; box-shadow: none; }
   .ledger-hero { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
 }
+
+/* Dashboard refresh: denser hierarchy, faster actions and calmer surfaces. */
+:root {
+  --ink: #12233d;
+  --ink-soft: #5a687b;
+  --blue: #3457d5;
+  --green: #07836a;
+  --coral: #d65b4a;
+  --mist: #eef2f6;
+  --paper: #ffffff;
+  --line: #dbe2e9;
+  --shadow: 0 0.5rem 0.5rem rgba(18, 35, 61, 0.08);
+  --radius-sm: 0.65rem;
+  --radius-md: 0.9rem;
+  --radius-lg: 1rem;
+}
+
+body { background: var(--mist); font-family: Inter, system-ui, sans-serif; }
+h1, h2, strong, .month-label { font-family: Inter, system-ui, sans-serif; }
+h1 { font-size: 1.75rem; font-weight: 700; letter-spacing: -0.035em; text-wrap: balance; }
+h2 { font-size: 0.98rem; font-weight: 700; letter-spacing: -0.015em; text-wrap: balance; }
+.app-shell { max-width: 82rem; padding: 1.25rem 1rem 7rem; }
+.topbar { align-items: center; margin-bottom: 1rem; }
+.greeting { margin-bottom: 0.1rem; font-size: 0.8rem; }
+.icon-button { width: 2.75rem; height: 2.75rem; min-width: 2.75rem; min-height: 2.75rem; border-radius: 0.7rem; font-size: 1.1rem; transition: border-color 180ms ease, background-color 180ms ease, color 180ms ease, transform 180ms ease; }
+.icon-button:hover { border-color: #b9c4cf; background: #f8fafc; }
+.icon-button:active { transform: scale(0.96); }
+
+.period-bar { gap: 0.15rem; margin-bottom: 0.75rem; border-bottom: 1px solid var(--line); padding-bottom: 0.75rem; }
+.month-label { min-width: 7rem; min-height: 2.75rem; }
+.month-label span { font-size: 0.95rem; }
+.sync-button, .close-month-button { min-height: 2.75rem; }
+.sync-button { border-radius: 0.7rem; }
+.close-month-button { border-radius: 0.7rem; }
+
+.overview-layout { display: grid; gap: 0.75rem; }
+.ledger-hero { min-height: 0; border-radius: var(--radius-lg); padding: 1.25rem; background: #12233d; box-shadow: none; }
+.balance-block p { color: #b4c0d0; font-size: 0.8rem; }
+.balance-block strong { font-size: 2.55rem; font-weight: 700; letter-spacing: -0.04em; }
+.balance-block span { margin-top: 0.6rem; padding: 0.3rem 0.6rem; background: #ffffff14; color: #d9e2ed; font-size: 0.75rem; }
+.hero-chart-wrap { height: 5.75rem; margin: 0.8rem -1.25rem 0; }
+.hero-totals { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.75rem 1rem; padding-top: 0.85rem; }
+.hero-totals div:last-child { grid-column: auto; }
+.hero-totals dt { color: #b4c0d0; font-size: 0.7rem; }
+.hero-totals dd { font: 650 0.9rem Inter, sans-serif; font-variant-numeric: tabular-nums; }
+
+.ownership-summary { display: flex; flex-direction: column; margin-top: 0; border-color: var(--line); border-radius: var(--radius-lg); padding: 1.15rem; }
+.ownership-heading { gap: 0.5rem; margin-bottom: 0.25rem; }
+.ownership-heading p { max-width: 34ch; font-size: 0.75rem; }
+.total-note { padding: 0.25rem 0.5rem; font-size: 0.66rem; }
+.ownership-balances { flex: 1; }
+.owner-balance { padding: 0.85rem 0; }
+.owner-balance dt { font-size: 0.76rem; }
+.owner-balance dd { font: 700 1rem Inter, sans-serif; font-variant-numeric: tabular-nums; }
+.owner-balance small { font-size: 0.68rem; }
+
+.quick-actions { display: grid; gap: 0.75rem; margin-top: 0.75rem; border-radius: var(--radius-md); padding: 1rem; background: #e4eaf0; }
+.quick-actions-heading h2 { margin: 0; }
+.quick-actions-heading p { margin: 0.15rem 0 0; color: var(--ink-soft); font-size: 0.72rem; }
+.quick-actions-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.5rem; }
+.quick-actions-list button { display: flex; min-width: 0; min-height: 3.5rem; align-items: center; gap: 0.65rem; border: 0; border-radius: 0.7rem; padding: 0.55rem 0.65rem; background: var(--paper); color: var(--ink); cursor: pointer; text-align: left; transition: background-color 180ms ease, transform 180ms ease; }
+.quick-actions-list button:hover { background: #f8fafc; }
+.quick-actions-list button:active { transform: scale(0.98); }
+.quick-actions-list button:disabled { cursor: not-allowed; opacity: 0.48; }
+.quick-actions-list button > span:last-child { min-width: 0; }
+.quick-actions-list strong, .quick-actions-list small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.quick-actions-list strong { font-size: 0.78rem; }
+.quick-actions-list small { margin-top: 0.08rem; color: var(--ink-soft); font-size: 0.66rem; }
+.quick-action-icon { display: grid; width: 2rem; height: 2rem; flex: 0 0 2rem; place-items: center; border-radius: 0.55rem; background: #edf1ff; color: var(--blue); font-size: 1.1rem; font-weight: 700; }
+.quick-action-icon.expense-icon { background: #fff0ed; color: var(--coral); }
+.quick-action-icon.income-icon { background: #e5f6f1; color: var(--green); }
+.quick-action-icon.bill-icon { background: #fff5de; color: #8a5d0b; }
+
+.dashboard-grid { display: grid; gap: 0.75rem; margin-top: 0.75rem; }
+.panel { border-color: var(--line); border-radius: var(--radius-md); padding: 1.1rem; }
+.panel-heading { margin-bottom: 1rem; }
+.panel-heading p { font-size: 0.73rem; }
+.budget-chip { padding: 0.3rem 0.55rem; font-size: 0.66rem; }
+.week-list { gap: 0.8rem; }
+.week-item { grid-template-columns: 4rem minmax(3rem, 1fr) auto; gap: 0.6rem; }
+.week-item span, .week-item strong { font-size: 0.72rem; }
+.bar-track { height: 0.4rem; }
+.category-chart { grid-template-columns: minmax(6.5rem, 8rem) 1fr; }
+.legend { gap: 0.55rem; }
+.plan-gauge { width: 4.5rem; height: 4.5rem; }
+.plan-summary strong { font-size: 1.05rem; }
+.goal-row { margin-top: 1rem; padding-top: 0.8rem; }
+.alert-item, .calm-state { border-radius: 0.65rem; padding: 0.7rem; }
+.alert-item p, .calm-state p { font-size: 0.75rem; }
+.settlement-panel { display: flex; flex-direction: column; }
+.settlement-panel #settlementSummary { flex: 1; }
+.settlement-panel .full { margin-top: 0.75rem; }
+
+@media (min-width: 48rem) {
+  .app-shell { padding: 1.75rem 2rem 5.5rem; }
+  h1 { font-size: 2rem; }
+  .overview-layout { grid-template-columns: minmax(0, 1.65fr) minmax(17rem, 0.85fr); }
+  .ledger-hero { grid-template-columns: minmax(14rem, 0.9fr) minmax(15rem, 1.1fr); padding: 1.5rem; }
+  .balance-block { align-self: center; }
+  .balance-block strong { font-size: 3rem; }
+  .hero-chart-wrap { align-self: center; height: 7.5rem; margin: 0 -1.5rem 0 0; }
+  .hero-totals { grid-column: 1 / -1; grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .ownership-heading { display: block; }
+  .total-note { display: inline-block; margin-top: 0.55rem; }
+  .ownership-balances { display: grid; grid-template-columns: 1fr; align-content: center; }
+  .owner-balance { display: grid; grid-template-columns: 1fr auto; border-top: 1px solid var(--line); border-left: 0; padding: 0.85rem 0; }
+  .owner-balance:first-child { border-top: 0; padding-left: 0; }
+  .owner-balance:last-child { padding-right: 0; }
+  .owner-balance dd { margin-top: 0; font-size: 1rem; }
+  .owner-balance small { display: block; margin-top: 0; }
+  .quick-actions { grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 1.25rem; padding: 0.75rem 1rem; }
+  .quick-actions-heading { min-width: 11rem; }
+  .quick-actions-list { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .dashboard-grid { grid-template-columns: repeat(12, minmax(0, 1fr)); }
+  .rhythm-panel { grid-column: span 7; }
+  .category-panel { grid-column: span 5; }
+  .plan-panel { grid-column: span 5; }
+  .alerts-panel { grid-column: span 7; }
+  .settlement-panel { grid-column: span 12; }
+}
+
+@media (min-width: 64rem) {
+  body { padding-left: 14.5rem; }
+  .sidebar { width: 14.5rem; padding: 1.75rem 1rem; }
+  .app-shell { padding: 2rem 2rem 2.5rem; }
+  .side-nav { margin-top: 2.25rem; }
+}
+
+@media (min-width: 80rem) {
+  .rhythm-panel { grid-column: span 7; }
+  .category-panel { grid-column: span 5; }
+  .plan-panel { grid-column: span 4; }
+  .alerts-panel { grid-column: span 5; }
+  .settlement-panel { grid-column: span 3; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .quick-actions-list button, .icon-button { transition: none; }
+}
+
+@media print {
+  .quick-actions { display: none; }
+  .overview-layout { grid-template-columns: 1.6fr 0.8fr; }
+  .dashboard-grid { grid-template-columns: repeat(12, 1fr); }
+  .rhythm-panel { grid-column: span 7; }
+  .category-panel { grid-column: span 5; }
+  .plan-panel { grid-column: span 4; }
+  .alerts-panel { grid-column: span 5; }
+  .settlement-panel { grid-column: span 3; }
+}
