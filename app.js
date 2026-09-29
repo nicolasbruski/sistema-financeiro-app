@@ -405,8 +405,6 @@ $('#quickExpense')?.addEventListener('click', () => openTransaction());
 $('#quickIncome')?.addEventListener('click', () => { openTransaction(); $('#incomeType').checked = true; updateTransactionForm(); });
 $('#quickBill')?.addEventListener('click', () => openBill());
 $('#quickPlan')?.addEventListener('click', () => $('#editPlan').click());
-$('#openCards').addEventListener('click', openCards);
-$('#openInstallment').addEventListener('click', openInstallment);
 $('#mobileAdd').addEventListener('click', () => { location.hash = 'gastos'; openTransaction(); });
 $('#settingsButton').addEventListener('click', openSettings);
 $('#mobileSettings').addEventListener('click', openSettings);
