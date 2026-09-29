@@ -205,11 +205,11 @@
     <dialog id="settingsDialog" class="dialog compact-dialog">
       <form method="dialog" id="settingsForm">
         <div class="dialog-head"><div><h2>Conectar ao GitHub</h2><p>Os dados ficam em um repositório privado.</p></div><button class="icon-button subtle" value="cancel" aria-label="Fechar">×</button></div>
-        <div class="privacy-note"><strong>Seu token não vai para o código.</strong><span>Ele fica somente neste aparelho e precisa de acesso “Contents: read and write” apenas ao repositório de dados.</span></div>
+        <div class="privacy-note"><strong>Seu token não vai para o código.</strong><span>Ele fica salvo neste aparelho para carregar e sincronizar seus dados automaticamente. Use acesso “Contents: read and write” somente ao repositório de dados.</span></div>
         <label>Usuário ou organização<input name="owner"  placeholder="seu-usuario" /></label>
         <label>Repositório de dados<input name="repo"  placeholder="controle-financeiro-dados" /></label>
         <label>Branch<input name="branch"  value="main" /></label>
-        <label>Token de acesso<input name="token" type="password" autocomplete="off" placeholder="github_pat_..." /></label>
+        <label>Token de acesso<input name="token" type="password" autocomplete="off" placeholder="github_pat_..." /><small>Deixe em branco para manter o token já salvo.</small></label>
         <button class="button button-primary full" type="submit">Salvar conexão</button>
       </form>
     </dialog>

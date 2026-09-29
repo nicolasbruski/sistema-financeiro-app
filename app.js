@@ -11,6 +11,10 @@ const CATEGORIES = {
 const today = new Date();
 let cursor = new Date(today.getFullYear(), today.getMonth(), 1);
 let monthData = null;
+let autoSyncTimer = null;
+
+const GITHUB_SETTINGS_KEY = 'nosso-caixa:github';
+const GITHUB_TOKEN_KEY = 'nosso-caixa:github-token';
 
 const demoTransactions = [
   ['2026-09-02', 'income', 'Salário', 'Receita', 620000, 'Você'],
@@ -55,11 +59,12 @@ function loadMonth() {
     monthData.savingsGoal = 100000;
     monthData.transactions = demoTransactions;
   }
-  if (!stored || JSON.stringify(JSON.parse(stored)) !== JSON.stringify(monthData)) {
+  if (stored && JSON.stringify(JSON.parse(stored)) !== JSON.stringify(monthData)) {
     monthData.updatedAt = new Date().toISOString();
     localStorage.setItem(storageKey(), JSON.stringify(monthData));
   }
   render();
+  scheduleGithubSync(150);
 }
 
 function saveLocal(feedback = true) {
@@ -67,6 +72,7 @@ function saveLocal(feedback = true) {
   localStorage.setItem(storageKey(), JSON.stringify(monthData));
   $('#syncText').textContent = 'Alterações salvas neste aparelho';
   if (feedback) toast('Movimentação salva neste aparelho');
+  scheduleGithubSync();
 }
 
 function totals() {
@@ -224,55 +230,120 @@ function escapeHtml(value) { const div = document.createElement('div'); div.text
 function toast(message) { const el = $('#toast'); el.textContent = message; el.classList.add('show'); clearTimeout(toast.timer); toast.timer = setTimeout(() => el.classList.remove('show'), 2600); }
 function openDialog(id) { const dialog = $(id); if (!dialog.open) dialog.showModal(); }
 
-async function syncGithub() {
-  const settings = JSON.parse(localStorage.getItem('nosso-caixa:github') || '{}');
-  const token = sessionStorage.getItem('nosso-caixa:token');
-  if (!settings.owner || !settings.repo || !token) { openSettings(); toast('Informe a conexão com o GitHub'); return; }
-  const button = $('#syncButton'); button.disabled = true; button.querySelector('span:last-child').textContent = 'Salvando...';
+function getGithubConnection() {
+  const settings = JSON.parse(localStorage.getItem(GITHUB_SETTINGS_KEY) || '{}');
+  const sessionToken = sessionStorage.getItem('nosso-caixa:token');
+  let token = localStorage.getItem(GITHUB_TOKEN_KEY) || sessionToken || '';
+  if (sessionToken && !localStorage.getItem(GITHUB_TOKEN_KEY)) {
+    localStorage.setItem(GITHUB_TOKEN_KEY, sessionToken);
+    sessionStorage.removeItem('nosso-caixa:token');
+  }
+  return { ...settings, token };
+}
+
+function hasMonthValues(data) {
+  return Boolean(
+    data.openingBalance ||
+    data.openingBalances?.['Você'] ||
+    data.openingBalances?.Namorada ||
+    data.savingsGoal ||
+    data.transactions?.length ||
+    data.bills?.length
+  );
+}
+
+function scheduleGithubSync(delay = 700) {
+  const connection = getGithubConnection();
+  if (!connection.owner || !connection.repo || !connection.token) return;
+  clearTimeout(autoSyncTimer);
+  autoSyncTimer = setTimeout(() => syncGithub({ silent: true }), delay);
+}
+
+async function syncGithub({ silent = false } = {}) {
+  const settings = getGithubConnection();
+  if (!settings.owner || !settings.repo || !settings.token) {
+    if (!silent) { openSettings(); toast('Informe a conexão com o GitHub'); }
+    return;
+  }
+
+  clearTimeout(autoSyncTimer);
+  const targetMonth = monthKey();
+  const targetYear = cursor.getFullYear();
+  const targetStorageKey = storageKey();
+  const button = $('#syncButton');
+  button.disabled = true;
+  button.querySelector('span:last-child').textContent = 'Salvando...';
+
   try {
-    const path = `dados/${cursor.getFullYear()}/${monthKey()}.json`;
+    const path = `dados/${targetYear}/${targetMonth}.json`;
     const url = `https://api.github.com/repos/${encodeURIComponent(settings.owner)}/${encodeURIComponent(settings.repo)}/contents/${path}`;
-    const headers = { Accept: 'application/vnd.github+json', Authorization: `Bearer ${token}`, 'X-GitHub-Api-Version': '2022-11-28' };
+    const headers = { Accept: 'application/vnd.github+json', Authorization: `Bearer ${settings.token}`, 'X-GitHub-Api-Version': '2022-11-28' };
     const current = await fetch(`${url}?ref=${encodeURIComponent(settings.branch || 'main')}`, { headers });
     let sha;
+
     if (current.ok) {
       const remoteFile = await current.json();
       sha = remoteFile.sha;
       const decoded = decodeURIComponent(escape(atob(remoteFile.content.replace(/\s/g, ''))));
-      const remoteData = JSON.parse(decoded);
+      const remoteData = normalizeMonth(JSON.parse(decoded));
+      const latestLocalRaw = localStorage.getItem(targetStorageKey);
+      const latestLocal = normalizeMonth(latestLocalRaw ? JSON.parse(latestLocalRaw) : { month: targetMonth });
       const remoteTime = new Date(remoteData.updatedAt || 0).getTime();
-      const localTime = new Date(monthData.updatedAt || 0).getTime();
-      if (remoteTime > localTime) {
-        monthData = normalizeMonth(remoteData);
-        localStorage.setItem(storageKey(), JSON.stringify(monthData));
-        render();
-        $('#syncText').textContent = 'Dados carregados do GitHub';
-        toast('A versão mais recente foi carregada do GitHub');
+      const localTime = new Date(latestLocal.updatedAt || 0).getTime();
+      const shouldLoadRemote = !latestLocalRaw ||
+        (!hasMonthValues(latestLocal) && hasMonthValues(remoteData)) ||
+        (remoteTime > localTime && hasMonthValues(remoteData));
+
+      if (shouldLoadRemote) {
+        localStorage.setItem(targetStorageKey, JSON.stringify(remoteData));
+        if (monthKey() === targetMonth) {
+          monthData = remoteData;
+          render();
+          $('#syncText').textContent = 'Dados carregados do GitHub';
+        }
+        if (!silent) toast('A versão mais recente foi carregada do GitHub');
         return;
       }
-      if (remoteFile.content.replace(/\s/g, '') === btoa(unescape(encodeURIComponent(JSON.stringify(monthData, null, 2))))) {
-        $('#syncText').textContent = 'Sincronizado com o GitHub';
-        toast('Tudo já está sincronizado');
+
+      const encodedLocal = btoa(unescape(encodeURIComponent(JSON.stringify(latestLocal, null, 2))));
+      if (remoteFile.content.replace(/\s/g, '') === encodedLocal) {
+        if (monthKey() === targetMonth) $('#syncText').textContent = 'Sincronizado com o GitHub';
+        if (!silent) toast('Tudo já está sincronizado');
         return;
       }
+    } else if (current.status !== 404) {
+      throw new Error(`GitHub respondeu ${current.status}`);
     }
-    else if (current.status !== 404) throw new Error(`GitHub respondeu ${current.status}`);
-    const encoded = btoa(unescape(encodeURIComponent(JSON.stringify(monthData, null, 2))));
-    const response = await fetch(url, { method: 'PUT', headers: { ...headers, 'Content-Type': 'application/json' }, body: JSON.stringify({ message: `Atualiza ${monthKey()}`, content: encoded, branch: settings.branch || 'main', ...(sha && { sha }) }) });
+
+    const latestLocalRaw = localStorage.getItem(targetStorageKey);
+    const latestLocal = normalizeMonth(latestLocalRaw ? JSON.parse(latestLocalRaw) : { month: targetMonth });
+    if (!hasMonthValues(latestLocal)) {
+      if (monthKey() === targetMonth) $('#syncText').textContent = 'Nenhum dado para sincronizar';
+      return;
+    }
+
+    const encoded = btoa(unescape(encodeURIComponent(JSON.stringify(latestLocal, null, 2))));
+    const response = await fetch(url, { method: 'PUT', headers: { ...headers, 'Content-Type': 'application/json' }, body: JSON.stringify({ message: `Atualiza ${targetMonth}`, content: encoded, branch: settings.branch || 'main', ...(sha && { sha }) }) });
     if (!response.ok) throw new Error(`Não foi possível salvar (${response.status})`);
-    $('#syncText').textContent = 'Sincronizado com o GitHub';
-    toast('Mês sincronizado com o GitHub');
-  } catch (error) { toast(error.message); }
-  finally { button.disabled = false; button.querySelector('span:last-child').textContent = 'Sincronizar'; }
+    if (monthKey() === targetMonth) $('#syncText').textContent = 'Sincronizado com o GitHub';
+    if (!silent) toast('Mês sincronizado com o GitHub');
+  } catch (error) {
+    if (monthKey() === targetMonth) $('#syncText').textContent = 'Dados salvos neste aparelho';
+    if (!silent) toast(error.message);
+  } finally {
+    button.disabled = false;
+    button.querySelector('span:last-child').textContent = 'Sincronizar';
+  }
 }
 
 function openSettings() {
-  const settings = JSON.parse(localStorage.getItem('nosso-caixa:github') || '{}');
+  const settings = getGithubConnection();
   const form = $('#settingsForm');
   form.owner.value = settings.owner || '';
   form.repo.value = settings.repo || '';
   form.branch.value = settings.branch || 'main';
   form.token.value = '';
+  form.token.placeholder = settings.token ? 'Token salvo neste aparelho' : 'github_pat_...';
   openDialog('#settingsDialog');
 }
 
@@ -411,9 +482,11 @@ $('#settingsForm').addEventListener('submit', event => {
   if (event.submitter?.value === 'cancel') return;
   event.preventDefault();
   const form = new FormData(event.currentTarget);
-  localStorage.setItem('nosso-caixa:github', JSON.stringify({ owner: form.get('owner').trim(), repo: form.get('repo').trim(), branch: form.get('branch').trim() || 'main' }));
-  if (form.get('token')) sessionStorage.setItem('nosso-caixa:token', form.get('token').trim());
-  event.currentTarget.closest('dialog').close(); toast('Conexão configurada para esta sessão');
+  localStorage.setItem(GITHUB_SETTINGS_KEY, JSON.stringify({ owner: form.get('owner').trim(), repo: form.get('repo').trim(), branch: form.get('branch').trim() || 'main' }));
+  if (form.get('token')) localStorage.setItem(GITHUB_TOKEN_KEY, form.get('token').trim());
+  event.currentTarget.closest('dialog').close();
+  toast('Conexão salva neste aparelho');
+  syncGithub({ silent: true });
 });
 
 window.addEventListener('resize', () => requestAnimationFrame(renderBalanceChart));

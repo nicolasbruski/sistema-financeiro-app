@@ -18,7 +18,7 @@ Para visualizar a interface com dados fictícios, acesse `/?demo=1`. A versão n
 
 Ative o GitHub Pages para a branch principal. Mantenha os dados financeiros em outro repositório privado e configure a conexão dentro do aplicativo.
 
-O token refinado deve ter acesso somente ao repositório de dados, com a permissão `Contents: Read and write`. Ele é mantido em `sessionStorage`, portanto precisa ser informado novamente quando a sessão do navegador terminar.
+O token refinado deve ter acesso somente ao repositório de dados, com a permissão `Contents: Read and write`. A conexão fica salva no `localStorage` deste aparelho. Ao abrir o aplicativo ou alterar um mês, os dados são sincronizados automaticamente; se a internet estiver indisponível, a cópia local continua funcionando.
 
 ## Arquivos mensais
 
