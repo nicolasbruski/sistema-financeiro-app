@@ -1,11 +1,21 @@
 const CATEGORIES = {
-  Moradia: { color: '#2962ff', icon: '⌂' },
-  Alimentação: { color: '#0c9273', icon: '◒' },
-  Transporte: { color: '#e15c47', icon: '◇' },
-  Lazer: { color: '#8c62d6', icon: '☆' },
-  Saúde: { color: '#df9e2f', icon: '+' },
-  Outros: { color: '#778397', icon: '•' },
-  Receita: { color: '#0c9273', icon: '↗' }
+  Moradia: { color: '#2962ff' },
+  Alimentação: { color: '#0c9273' },
+  Transporte: { color: '#e15c47' },
+  Lazer: { color: '#8c62d6' },
+  Saúde: { color: '#df9e2f' },
+  Presente: { color: '#bd4f8f' },
+  Trabalho: { color: '#277f9d' },
+  Carro: { color: '#c6533f' },
+  Eletrônico: { color: '#5865c7' },
+  Estudos: { color: '#9a6b16' },
+  Outros: { color: '#778397' },
+  Receita: { color: '#0c9273' }
+};
+
+const CASH_FLOW_ICONS = {
+  income: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="8" width="17" height="12" rx="2"></rect><text x="12" y="17" text-anchor="middle">$</text><path d="M12 2v6M9.5 5.5 12 8l2.5-2.5"></path></svg>',
+  expense: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="8" width="17" height="12" rx="2"></rect><text x="12" y="17" text-anchor="middle">$</text><path d="M12 8V2M9.5 4.5 12 2l2.5 2.5"></path></svg>'
 };
 
 const today = new Date();
@@ -167,10 +177,9 @@ function renderTransactions() {
   $('#transactionCount').textContent = `${sorted.length} ${sorted.length === 1 ? 'lançamento' : 'lançamentos'} neste mês`;
   $('#transactionList').innerHTML = sorted.length ? sorted.map(t => {
     const date = new Date(`${t.date}T12:00:00`).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }).replace('.', '');
-    const config = CATEGORIES[t.category] || CATEGORIES.Outros;
     const ownerLabel = t.paidBy === 'Você' ? 'Nicolas' : t.paidBy === 'Namorada' ? 'Isabella' : 'Compartilhado';
     const ownerClass = t.paidBy === 'Você' ? 'you' : t.paidBy === 'Namorada' ? 'partner' : 'shared';
-    return `<article class="transaction-item"><span class="transaction-icon" style="color:${config.color};background:${config.color}14">${config.icon}</span><div class="transaction-main"><strong>${escapeHtml(t.description)}</strong><span>${t.category} <i class="owner-pill ${ownerClass}">${ownerLabel}</i> ${date}</span></div><span class="transaction-value ${t.type}">${t.type === 'income' ? '+' : '−'} ${money(t.value)}</span></article>`;
+    return `<article class="transaction-item"><span class="transaction-icon ${t.type}" aria-hidden="true">${CASH_FLOW_ICONS[t.type]}</span><div class="transaction-main"><strong>${escapeHtml(t.description)}</strong><span>${t.category} <i class="owner-pill ${ownerClass}">${ownerLabel}</i> ${date}</span></div><span class="transaction-value ${t.type}">${t.type === 'income' ? '+' : '−'} ${money(t.value)}</span></article>`;
   }).join('') : '<div class="empty-state"><strong>O mês está pronto para começar.</strong><br>Inclua a primeira movimentação.</div>';
 }
 
