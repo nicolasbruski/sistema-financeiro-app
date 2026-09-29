@@ -2,6 +2,15 @@
 
 Controle financeiro responsivo, instalável no celular e preparado para salvar um arquivo JSON por mês em um repositório privado do GitHub.
 
+## Recursos
+
+- Contas mensais e recorrentes, com alertas de vencimento e previsão de saldo.
+- Movimentações editáveis, duplicáveis e filtráveis.
+- Cartões e compras parceladas distribuídas nas faturas futuras.
+- Fechamento do mês, transporte de saldo e registro do valor reservado.
+- Divisão de despesas e acerto entre o casal sem distorcer receitas e gastos.
+- Histórico comparativo dos meses armazenados no aparelho.
+
 ## Executar localmente
 
 Sirva a pasta com qualquer servidor HTTP estático. Por exemplo:
@@ -26,6 +35,9 @@ Cada sincronização cria ou atualiza:
 
 ```text
 dados/AAAA/AAAA-MM.json
+dados/config.json
 ```
+
+O arquivo `config.json` guarda cartões, recorrências e planos de parcelamento. Os arquivos mensais continuam contendo somente os dados daquele período.
 
 Para exportar um relatório, use o botão de download e escolha **Salvar como PDF** na janela de impressão do aparelho.

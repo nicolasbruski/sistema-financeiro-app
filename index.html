@@ -23,6 +23,7 @@
         <a class="nav-item is-active" href="#inicio" data-view="inicio"><span aria-hidden="true">⌂</span>Visão geral</a>
         <a class="nav-item" href="#contas" data-view="lancamentos"><span aria-hidden="true">↕</span>Contas e gastos</a>
         <a class="nav-item" href="#planejamento" data-view="planejamento"><span aria-hidden="true">◎</span>Planejamento</a>
+        <a class="nav-item" href="#historico" data-view="historico"><span aria-hidden="true">≡</span>Histórico</a>
       </nav>
       <div class="sidebar-foot">
         <button class="nav-item button-reset" id="settingsButton"><span aria-hidden="true">⚙</span>Conectar GitHub</button>
@@ -37,6 +38,7 @@
           <h1 id="pageTitle">Como está o nosso mês?</h1>
         </div>
         <div class="top-actions">
+          <button class="icon-button mobile-settings-button" id="mobileSettings" aria-label="Ajustes" title="Ajustes">⚙</button>
           <button class="icon-button" id="exportButton" aria-label="Exportar relatório em PDF" title="Exportar PDF">⇩</button>
         </div>
       </header>
@@ -50,6 +52,7 @@
           <svg viewBox="0 0 20 20" aria-hidden="true"><path d="m8 5 5 5-5 5" /></svg>
         </button>
         <button class="sync-button" id="syncButton"><span aria-hidden="true">↻</span><span>Sincronizar</span></button>
+        <button class="button close-month-button" id="closeMonthButton">Fechar mês</button>
       </section>
 
       <section class="app-view" id="inicio" data-page="dashboard">
@@ -65,6 +68,7 @@
           <dl class="hero-totals">
             <div><dt>Entradas</dt><dd class="positive" id="incomeValue">R$ 0,00</dd></div>
             <div><dt>Saídas</dt><dd id="expenseValue">R$ 0,00</dd></div>
+            <div><dt>Após contas pendentes</dt><dd id="projectedValue">R$ 0,00</dd></div>
           </dl>
         </section>
 
@@ -125,6 +129,21 @@
             </div>
             <div class="goal-row"><span>Reserva do casal</span><strong id="goalValue">R$ 0,00</strong></div>
           </section>
+
+          <section class="panel alerts-panel" aria-labelledby="alertsTitle">
+            <div class="panel-heading">
+              <div><h2 id="alertsTitle">Atenção neste mês</h2><p>Vencimentos e riscos do planejamento</p></div>
+            </div>
+            <div class="alert-list" id="alertList"></div>
+          </section>
+
+          <section class="panel settlement-panel" aria-labelledby="settlementTitle">
+            <div class="panel-heading">
+              <div><h2 id="settlementTitle">Acerto do casal</h2><p>Despesas compartilhadas pagas individualmente</p></div>
+            </div>
+            <div id="settlementSummary"></div>
+            <button class="button button-secondary full" id="recordSettlement" type="button">Registrar acerto</button>
+          </section>
         </div>
       </section>
 
@@ -137,7 +156,11 @@
         <section class="panel records-panel" id="billsPanel" role="tabpanel" aria-labelledby="billsTab">
           <div class="panel-heading bills-heading">
             <div><h2 id="billsTitle">Contas do mês</h2><p id="billsSummary">Nenhuma conta cadastrada</p></div>
-            <button class="button button-primary compact-action" id="openBill"><span aria-hidden="true">＋</span> Nova conta</button>
+            <div class="heading-actions">
+              <button class="button button-secondary compact-action" id="openCards">Cartões</button>
+              <button class="button button-secondary compact-action" id="openInstallment">Compra parcelada</button>
+              <button class="button button-primary compact-action" id="openBill"><span aria-hidden="true">＋</span> Nova conta</button>
+            </div>
           </div>
           <div class="bill-list" id="billList"></div>
         </section>
@@ -147,7 +170,28 @@
             <div><h2 id="transactionTitle">Gastos e movimentações</h2><p id="transactionCount">Nenhum lançamento</p></div>
             <button class="button button-primary compact-action" id="openTransaction"><span aria-hidden="true">＋</span> Nova movimentação</button>
           </div>
+          <div class="record-filters" aria-label="Filtrar movimentações">
+            <label class="search-field"><span>Buscar</span><input id="transactionSearch" type="search" placeholder="Descrição ou categoria" /></label>
+            <label><span>Tipo</span><select id="transactionTypeFilter"><option value="">Todos</option><option value="expense">Saídas</option><option value="income">Entradas</option><option value="transfer">Transferências</option></select></label>
+            <label><span>Responsável</span><select id="transactionOwnerFilter"><option value="">Todos</option><option value="Você">Nicolas</option><option value="Namorada">Isabella</option><option value="Casal">Compartilhado</option></select></label>
+            <label><span>Categoria</span><select id="transactionCategoryFilter"><option value="">Todas</option></select></label>
+            <label><span>Ordem</span><select id="transactionSort"><option value="date-desc">Mais recentes</option><option value="date-asc">Mais antigas</option><option value="value-desc">Maior valor</option><option value="description">Descrição</option></select></label>
+            <label><span>De</span><input id="transactionDateFrom" type="date" /></label>
+            <label><span>Até</span><input id="transactionDateTo" type="date" /></label>
+          </div>
           <div class="transaction-list" id="transactionList"></div>
+        </section>
+      </section>
+
+      <section class="app-view history-view" id="historico" data-page="history" hidden>
+        <section class="panel history-panel">
+          <div class="panel-heading">
+            <div><h2>Evolução financeira</h2><p>Comparação dos meses salvos neste aparelho</p></div>
+            <select id="historyRange" aria-label="Período do histórico"><option value="6">6 meses</option><option value="12">12 meses</option></select>
+          </div>
+          <div class="history-summary" id="historySummary"></div>
+          <div class="history-bars" id="historyBars"></div>
+          <div class="history-table-wrap"><table class="history-table"><thead><tr><th>Mês</th><th>Entradas</th><th>Saídas</th><th>Reservado</th><th>Saldo final</th></tr></thead><tbody id="historyTableBody"></tbody></table></div>
         </section>
       </section>
     </main>
@@ -157,7 +201,7 @@
       <a href="#contas" data-view="lancamentos"><span>▣</span>Lançamentos</a>
       <button id="mobileAdd" aria-label="Nova movimentação">＋</button>
       <a href="#planejamento" data-view="planejamento"><span>◎</span>Plano</a>
-      <button id="mobileSettings"><span>⚙</span>Ajustes</button>
+      <a href="#historico" data-view="historico"><span>≡</span>Histórico</a>
     </nav>
 
     <dialog id="transactionDialog" class="dialog">
@@ -181,6 +225,14 @@
             <input type="radio" name="paidBy" id="ownerShared" value="Casal" />
             <label for="ownerShared"><strong>Nosso</strong><span>No saldo compartilhado</span></label>
           </div>
+        </fieldset>
+        <fieldset class="sharing-fields" id="sharingFields">
+          <legend>Para quem foi esta despesa?</legend>
+          <div class="type-toggle">
+            <input type="radio" name="scope" id="individualScope" value="individual" checked /><label for="individualScope">Individual</label>
+            <input type="radio" name="scope" id="sharedScope" value="shared" /><label for="sharedScope">Compartilhada</label>
+          </div>
+          <label id="splitLabel" hidden>Parte de Nicolas (%)<input name="splitYou" type="number" min="0" max="100" value="50" /></label>
         </fieldset>
         <button class="button button-primary full" type="submit">Salvar movimentação</button>
       </form>
@@ -223,6 +275,14 @@
           <label>Descrição<input name="description" maxlength="60" placeholder="Ex.: Fatura do cartão" /></label>
           <div class="form-row"><label>Valor<input name="value" inputmode="decimal" placeholder="0,00" /></label><label>Vencimento<input name="dueDay" type="number" min="1" max="31" placeholder="10" /></label></div>
           <label>Categoria<select name="category" id="billCategorySelect"></select></label>
+          <fieldset class="sharing-fields">
+            <legend>Para quem é esta conta?</legend>
+            <div class="type-toggle">
+              <input type="radio" name="scope" id="billIndividualScope" value="individual" checked /><label for="billIndividualScope">Individual</label>
+              <input type="radio" name="scope" id="billSharedScope" value="shared" /><label for="billSharedScope">Compartilhada</label>
+            </div>
+          </fieldset>
+          <label class="check-row"><input name="recurring" type="checkbox" /><span><strong>Repetir todos os meses</strong><small>A conta será criada automaticamente nos próximos meses.</small></span></label>
           <fieldset class="owner-picker" aria-describedby="billOwnerHelp">
             <legend>De qual saldo sairá?</legend>
             <p id="billOwnerHelp">Ao marcar a conta como paga, o valor será descontado deste saldo.</p>
@@ -237,6 +297,50 @@
           </fieldset>
         </div>
         <button class="button button-primary full" type="submit">Adicionar conta</button>
+      </form>
+    </dialog>
+
+    <dialog id="cardsDialog" class="dialog compact-dialog">
+      <form method="dialog" id="cardForm">
+        <div class="dialog-head"><div><h2>Cartões</h2><p>Cadastre os cartões usados nas compras parceladas.</p></div><button class="icon-button subtle" value="cancel" aria-label="Fechar">×</button></div>
+        <div class="card-list" id="cardList"></div>
+        <div class="form-row"><label>Nome<input name="name" maxlength="30" placeholder="Ex.: Nubank" required /></label><label>Titular<select name="owner"><option value="Você">Nicolas</option><option value="Namorada">Isabella</option><option value="Casal">Compartilhado</option></select></label></div>
+        <div class="form-row"><label>Fecha dia<input name="closingDay" type="number" min="1" max="31" required /></label><label>Vence dia<input name="dueDay" type="number" min="1" max="31" required /></label></div>
+        <button class="button button-primary full" type="submit">Adicionar cartão</button>
+      </form>
+    </dialog>
+
+    <dialog id="installmentDialog" class="dialog compact-dialog">
+      <form method="dialog" id="installmentForm">
+        <div class="dialog-head"><div><h2>Compra parcelada</h2><p>As parcelas aparecerão nas faturas futuras.</p></div><button class="icon-button subtle" value="cancel" aria-label="Fechar">×</button></div>
+        <label>Cartão<select name="cardId" id="installmentCardSelect" required></select></label>
+        <label>Descrição<input name="description" maxlength="60" placeholder="Ex.: Notebook" required /></label>
+        <div class="form-row"><label>Valor total<input name="value" inputmode="decimal" placeholder="0,00" required /></label><label>Parcelas<input name="installments" type="number" min="2" max="60" value="2" required /></label></div>
+        <div class="form-row"><label>Data da compra<input name="purchaseDate" type="date" required /></label><label>Categoria<select name="category" id="installmentCategorySelect"></select></label></div>
+        <div class="type-toggle">
+          <input type="radio" name="scope" id="installmentIndividual" value="individual" checked /><label for="installmentIndividual">Individual</label>
+          <input type="radio" name="scope" id="installmentShared" value="shared" /><label for="installmentShared">Compartilhada</label>
+        </div>
+        <button class="button button-primary full" type="submit">Criar parcelas</button>
+      </form>
+    </dialog>
+
+    <dialog id="closeMonthDialog" class="dialog compact-dialog">
+      <form method="dialog" id="closeMonthForm">
+        <div class="dialog-head"><div><h2>Fechar o mês</h2><p>Revise o resultado antes de iniciar o próximo.</p></div><button class="icon-button subtle" value="cancel" aria-label="Fechar">×</button></div>
+        <div class="close-summary" id="closeMonthSummary"></div>
+        <label>Valor efetivamente reservado<input name="savedAmount" inputmode="decimal" placeholder="0,00" /></label>
+        <label class="check-row"><input name="carryPending" type="checkbox" checked /><span><strong>Levar pendências para o próximo mês</strong><small>Contas ainda não pagas continuarão visíveis.</small></span></label>
+        <button class="button button-primary full" type="submit">Confirmar fechamento</button>
+      </form>
+    </dialog>
+
+    <dialog id="settlementDialog" class="dialog compact-dialog">
+      <form method="dialog" id="settlementForm">
+        <div class="dialog-head"><div><h2>Registrar acerto</h2><p>Uma transferência não altera as despesas do casal.</p></div><button class="icon-button subtle" value="cancel" aria-label="Fechar">×</button></div>
+        <div class="settlement-detail" id="settlementDetail"></div>
+        <label>Data<input name="date" type="date" required /></label>
+        <button class="button button-primary full" type="submit">Registrar transferência</button>
       </form>
     </dialog>
 
