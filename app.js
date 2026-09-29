@@ -393,9 +393,7 @@ function syncRoute() {
   $('#billsPanel').hidden = route !== 'contas'; $('#expensesPanel').hidden = route !== 'gastos'; $('#billsTab').setAttribute('aria-selected', String(route !== 'gastos')); $('#expensesTab').setAttribute('aria-selected', String(route === 'gastos'));
   const activeView = records ? 'lancamentos' : history ? 'historico' : route === 'planejamento' ? 'planejamento' : 'inicio';
   document.querySelectorAll('[data-view]').forEach(link => { const active = link.dataset.view === activeView; link.classList.toggle('is-active', active); active ? link.setAttribute('aria-current', 'page') : link.removeAttribute('aria-current'); });
-  const hour = new Date().getHours(), greeting = hour < 12 ? 'Bom dia' : hour < 18 ? 'Boa tarde' : 'Boa noite';
-  $('#pageKicker').textContent = records ? 'Organização mensal' : history ? 'Visão de longo prazo' : greeting; $('#pageTitle').textContent = records ? 'Contas e gastos' : history ? 'Histórico' : 'Como está o nosso mês?';
-  document.body.classList.toggle('records-mode', records || history); $('#exportButton').hidden = records || history; document.title = records ? 'Contas e gastos — Nosso Caixa' : history ? 'Histórico — Nosso Caixa' : 'Nosso Caixa';
+  document.body.classList.toggle('records-mode', records || history); document.title = records ? 'Contas e gastos — Nosso Caixa' : history ? 'Histórico — Nosso Caixa' : 'Nosso Caixa';
   if (history) renderHistory(); else if (route === 'planejamento') requestAnimationFrame(() => $('#planejamento').scrollIntoView({ block: 'start' })); else if (!records) requestAnimationFrame(renderBalanceChart);
 }
 
@@ -407,9 +405,7 @@ $('#quickBill')?.addEventListener('click', () => openBill());
 $('#quickPlan')?.addEventListener('click', () => $('#editPlan').click());
 $('#mobileAdd').addEventListener('click', () => { location.hash = 'gastos'; openTransaction(); });
 $('#settingsButton').addEventListener('click', openSettings);
-$('#mobileSettings').addEventListener('click', openSettings);
 $('#syncButton').addEventListener('click', () => syncGithub());
-$('#exportButton').addEventListener('click', exportPdf);
 $('#previousMonth').addEventListener('click', () => setMonth(-1));
 $('#nextMonth').addEventListener('click', () => setMonth(1));
 $('#monthPicker').addEventListener('click', () => toast('Use as setas para navegar entre os meses'));
