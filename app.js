@@ -259,6 +259,19 @@ function scheduleGithubSync(delay = 700) {
   autoSyncTimer = setTimeout(() => syncGithub({ silent: true }), delay);
 }
 
+async function githubErrorMessage(response, fallback) {
+  let detail = '';
+  try { detail = (await response.json()).message || ''; } catch (_) {}
+  const messages = {
+    401: 'Token do GitHub inválido ou expirado',
+    403: 'Token sem permissão Contents: read and write',
+    404: 'Repositório não encontrado ou token sem acesso',
+    409: 'O GitHub não conseguiu inicializar o repositório vazio',
+    422: 'Branch ou dados da conexão inválidos'
+  };
+  return messages[response.status] || detail || `${fallback} (${response.status})`;
+}
+
 async function syncGithub({ silent = false } = {}) {
   const settings = getGithubConnection();
   if (!settings.owner || !settings.repo || !settings.token) {
@@ -280,6 +293,13 @@ async function syncGithub({ silent = false } = {}) {
     const headers = { Accept: 'application/vnd.github+json', Authorization: `Bearer ${settings.token}`, 'X-GitHub-Api-Version': '2022-11-28' };
     const current = await fetch(`${url}?ref=${encodeURIComponent(settings.branch || 'main')}`, { headers });
     let sha;
+    let emptyRepository = current.status === 409;
+
+    if (current.status === 404) {
+      const branchesUrl = `https://api.github.com/repos/${encodeURIComponent(settings.owner)}/${encodeURIComponent(settings.repo)}/branches?per_page=1`;
+      const branchesResponse = await fetch(branchesUrl, { headers });
+      if (branchesResponse.ok) emptyRepository = (await branchesResponse.json()).length === 0;
+    }
 
     if (current.ok) {
       const remoteFile = await current.json();
@@ -311,8 +331,8 @@ async function syncGithub({ silent = false } = {}) {
         if (!silent) toast('Tudo já está sincronizado');
         return;
       }
-    } else if (current.status !== 404) {
-      throw new Error(`GitHub respondeu ${current.status}`);
+    } else if (current.status !== 404 && !emptyRepository) {
+      throw new Error(await githubErrorMessage(current, 'GitHub respondeu'));
     }
 
     const latestLocalRaw = localStorage.getItem(targetStorageKey);
@@ -323,13 +343,21 @@ async function syncGithub({ silent = false } = {}) {
     }
 
     const encoded = btoa(unescape(encodeURIComponent(JSON.stringify(latestLocal, null, 2))));
-    const response = await fetch(url, { method: 'PUT', headers: { ...headers, 'Content-Type': 'application/json' }, body: JSON.stringify({ message: `Atualiza ${targetMonth}`, content: encoded, branch: settings.branch || 'main', ...(sha && { sha }) }) });
-    if (!response.ok) throw new Error(`Não foi possível salvar (${response.status})`);
+    const body = {
+      message: emptyRepository ? `Inicia dados de ${targetMonth}` : `Atualiza ${targetMonth}`,
+      content: encoded,
+      ...(!emptyRepository && { branch: settings.branch || 'main' }),
+      ...(sha && { sha })
+    };
+    const response = await fetch(url, { method: 'PUT', headers: { ...headers, 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    if (!response.ok) {
+      throw new Error(await githubErrorMessage(response, 'Não foi possível salvar'));
+    }
     if (monthKey() === targetMonth) $('#syncText').textContent = 'Sincronizado com o GitHub';
     if (!silent) toast('Mês sincronizado com o GitHub');
   } catch (error) {
-    if (monthKey() === targetMonth) $('#syncText').textContent = 'Dados salvos neste aparelho';
-    if (!silent) toast(error.message);
+    if (monthKey() === targetMonth) $('#syncText').textContent = `GitHub: ${error.message}`;
+    if (!silent || navigator.onLine) toast(error.message);
   } finally {
     button.disabled = false;
     button.querySelector('span:last-child').textContent = 'Sincronizar';
