@@ -367,10 +367,11 @@ async function syncGithub({ silent = false } = {}) {
 function openSettings() {
   const settings = getGithubConnection();
   const form = $('#settingsForm');
-  form.owner.value = settings.owner || '';
-  form.repo.value = settings.repo || '';
+  form.owner.value = settings.owner || 'nicolasbruski';
+  form.repo.value = settings.repo || 'sistema-financeiro';
   form.branch.value = settings.branch || 'main';
   form.token.value = '';
+  form.token.required = !settings.token;
   form.token.placeholder = settings.token ? 'Token salvo neste aparelho' : 'github_pat_...';
   openDialog('#settingsDialog');
 }
