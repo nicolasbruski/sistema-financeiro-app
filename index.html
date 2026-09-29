@@ -56,7 +56,6 @@
       </section>
 
       <section class="app-view" id="inicio" data-page="dashboard">
-        <div class="overview-layout">
         <section class="ledger-hero" aria-labelledby="balanceLabel">
           <div class="balance-block">
             <p id="balanceLabel">Saldo total do mês</p>
@@ -70,7 +69,6 @@
             <div><dt>Entradas</dt><dd class="positive" id="incomeValue">R$ 0,00</dd></div>
             <div><dt>Saídas</dt><dd id="expenseValue">R$ 0,00</dd></div>
             <div><dt>Após contas pendentes</dt><dd id="projectedValue">R$ 0,00</dd></div>
-            <div><dt>Contas pendentes</dt><dd id="pendingValue">R$ 0,00</dd></div>
           </dl>
         </section>
 
@@ -99,32 +97,6 @@
               <small>O valor que pertence a vocês dois</small>
             </div>
           </dl>
-        </section>
-        </div>
-
-        <section class="quick-actions" aria-labelledby="quickActionsTitle">
-          <div class="quick-actions-heading">
-            <h2 id="quickActionsTitle">O que você quer registrar?</h2>
-            <p>Atalhos para manter o mês em dia</p>
-          </div>
-          <div class="quick-actions-list">
-            <button type="button" id="quickExpense">
-              <span class="quick-action-icon expense-icon" aria-hidden="true">−</span>
-              <span><strong>Nova saída</strong><small>Compra ou gasto</small></span>
-            </button>
-            <button type="button" id="quickIncome">
-              <span class="quick-action-icon income-icon" aria-hidden="true">+</span>
-              <span><strong>Nova entrada</strong><small>Salário ou receita</small></span>
-            </button>
-            <button type="button" id="quickBill">
-              <span class="quick-action-icon bill-icon" aria-hidden="true">✓</span>
-              <span><strong>Nova conta</strong><small>Pagamento previsto</small></span>
-            </button>
-            <button type="button" id="quickPlan">
-              <span class="quick-action-icon plan-icon" aria-hidden="true">◎</span>
-              <span><strong>Ajustar plano</strong><small>Limite e reserva</small></span>
-            </button>
-          </div>
         </section>
 
         <div class="dashboard-grid">
@@ -289,9 +261,9 @@
         <div class="dialog-head"><div><h2>Conectar ao GitHub</h2><p>Os dados ficam em um repositório privado.</p></div><button class="icon-button subtle" value="cancel" aria-label="Fechar">×</button></div>
         <div class="settings-fields">
           <div class="privacy-note"><strong>Seu token não vai para o código.</strong><span>Ele fica salvo neste aparelho para carregar e sincronizar seus dados automaticamente. Use acesso “Contents: read and write” somente ao repositório de dados.</span></div>
-          <label>Usuário ou organização<input name="owner" value="nicolasbruski" autocomplete="username" required /></label>
-          <label>Repositório de dados<input name="repo" value="sistema-financeiro" required /></label>
-          <label>Branch<input name="branch" value="main" required /></label>
+          <label>Usuário ou organização<input name="owner" value="nicolasbruski" autocomplete="username" /></label>
+          <label>Repositório de dados<input name="repo" value="sistema-financeiro" /></label>
+          <label>Branch<input name="branch" value="main" /></label>
           <label>Token de acesso<input name="token" type="password" autocomplete="off" placeholder="github_pat_..." /><small>Deixe em branco para manter o token já salvo.</small></label>
         </div>
         <button class="button button-primary full settings-submit" type="submit">Salvar conexão e sincronizar</button>
@@ -334,8 +306,8 @@
       <form method="dialog" id="cardForm">
         <div class="dialog-head"><div><h2>Cartões</h2><p>Cadastre os cartões usados nas compras parceladas.</p></div><button class="icon-button subtle" value="cancel" aria-label="Fechar">×</button></div>
         <div class="card-list" id="cardList"></div>
-        <div class="form-row"><label>Nome<input name="name" maxlength="30" placeholder="Ex.: Nubank" required /></label><label>Titular<select name="owner"><option value="Você">Nicolas</option><option value="Namorada">Isabella</option><option value="Casal">Compartilhado</option></select></label></div>
-        <div class="form-row"><label>Fecha dia<input name="closingDay" type="number" min="1" max="31" required /></label><label>Vence dia<input name="dueDay" type="number" min="1" max="31" required /></label></div>
+        <div class="form-row"><label>Nome<input name="name" maxlength="30" placeholder="Ex.: Nubank" /></label><label>Titular<select name="owner"><option value="Você">Nicolas</option><option value="Namorada">Isabella</option><option value="Casal">Compartilhado</option></select></label></div>
+        <div class="form-row"><label>Fecha dia<input name="closingDay" type="number" min="1" max="31" /></label><label>Vence dia<input name="dueDay" type="number" min="1" max="31" /></label></div>
         <button class="button button-primary full" type="submit">Adicionar cartão</button>
       </form>
     </dialog>
@@ -343,10 +315,10 @@
     <dialog id="installmentDialog" class="dialog compact-dialog">
       <form method="dialog" id="installmentForm">
         <div class="dialog-head"><div><h2>Compra parcelada</h2><p>As parcelas aparecerão nas faturas futuras.</p></div><button class="icon-button subtle" value="cancel" aria-label="Fechar">×</button></div>
-        <label>Cartão<select name="cardId" id="installmentCardSelect" required></select></label>
-        <label>Descrição<input name="description" maxlength="60" placeholder="Ex.: Notebook" required /></label>
-        <div class="form-row"><label>Valor total<input name="value" inputmode="decimal" placeholder="0,00" required /></label><label>Parcelas<input name="installments" type="number" min="2" max="60" value="2" required /></label></div>
-        <div class="form-row"><label>Data da compra<input name="purchaseDate" type="date" required /></label><label>Categoria<select name="category" id="installmentCategorySelect"></select></label></div>
+        <label>Cartão<select name="cardId" id="installmentCardSelect"></select></label>
+        <label>Descrição<input name="description" maxlength="60" placeholder="Ex.: Notebook" /></label>
+        <div class="form-row"><label>Valor total<input name="value" inputmode="decimal" placeholder="0,00" /></label><label>Parcelas<input name="installments" type="number" min="2" max="60" value="2" /></label></div>
+        <div class="form-row"><label>Data da compra<input name="purchaseDate" type="date" /></label><label>Categoria<select name="category" id="installmentCategorySelect"></select></label></div>
         <div class="type-toggle">
           <input type="radio" name="scope" id="installmentIndividual" value="individual" checked /><label for="installmentIndividual">Individual</label>
           <input type="radio" name="scope" id="installmentShared" value="shared" /><label for="installmentShared">Compartilhada</label>
@@ -369,7 +341,7 @@
       <form method="dialog" id="settlementForm">
         <div class="dialog-head"><div><h2>Registrar acerto</h2><p>Uma transferência não altera as despesas do casal.</p></div><button class="icon-button subtle" value="cancel" aria-label="Fechar">×</button></div>
         <div class="settlement-detail" id="settlementDetail"></div>
-        <label>Data<input name="date" type="date" required /></label>
+        <label>Data<input name="date" type="date" /></label>
         <button class="button button-primary full" type="submit">Registrar transferência</button>
       </form>
     </dialog>
