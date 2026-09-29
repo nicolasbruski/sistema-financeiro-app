@@ -24,8 +24,6 @@ button { color: inherit; }
 
 .sidebar { display: none; }
 .app-shell { width: 100%; max-width: 90rem; margin: 0 auto; overflow-x: clip; padding: 1.25rem 1rem 7rem; }
-.topbar { display: flex; align-items: flex-end; justify-content: space-between; gap: 1rem; margin-bottom: 1.5rem; }
-.topbar > div:first-child { min-width: 0; max-width: calc(100% - 7rem); }
 .greeting { margin: 0 0 0.15rem; color: var(--ink-soft); font-size: 0.875rem; }
 h1, h2, strong, .month-label { font-family: Sora, sans-serif; }
 h1 { margin: 0; font-size: clamp(1.45rem, 6vw, 2.25rem); line-height: 1.12; letter-spacing: -0.035em; }
@@ -387,7 +385,6 @@ h1, h2, strong, .month-label { font-family: Inter, system-ui, sans-serif; }
 h1 { font-size: 1.75rem; font-weight: 700; letter-spacing: -0.035em; text-wrap: balance; }
 h2 { font-size: 0.98rem; font-weight: 700; letter-spacing: -0.015em; text-wrap: balance; }
 .app-shell { max-width: 82rem; padding: 1.25rem 1rem 7rem; }
-.topbar { align-items: center; margin-bottom: 1rem; }
 .greeting { margin-bottom: 0.1rem; font-size: 0.8rem; }
 .icon-button { width: 2.75rem; height: 2.75rem; min-width: 2.75rem; min-height: 2.75rem; border-radius: 0.7rem; font-size: 1.1rem; transition: border-color 180ms ease, background-color 180ms ease, color 180ms ease, transform 180ms ease; }
 .icon-button:hover { border-color: #b9c4cf; background: #f8fafc; }

@@ -32,17 +32,6 @@
     </aside>
 
     <main class="app-shell">
-      <header class="topbar">
-        <div>
-          <p class="greeting" id="pageKicker">Boa tarde</p>
-          <h1 id="pageTitle">Como está o nosso mês?</h1>
-        </div>
-        <div class="top-actions">
-          <button class="icon-button mobile-settings-button" id="mobileSettings" aria-label="Ajustes" title="Ajustes">⚙</button>
-          <button class="icon-button" id="exportButton" aria-label="Exportar relatório em PDF" title="Exportar PDF">⇩</button>
-        </div>
-      </header>
-
       <section class="period-bar" aria-label="Selecionar mês">
         <button class="month-nav-button" id="previousMonth" aria-label="Mês anterior">
           <svg viewBox="0 0 20 20" aria-hidden="true"><path d="m12 5-5 5 5 5" /></svg>
@@ -156,9 +145,7 @@
         <section class="panel records-panel" id="billsPanel" role="tabpanel" aria-labelledby="billsTab">
           <div class="panel-heading bills-heading">
             <div><h2 id="billsTitle">Contas do mês</h2><p id="billsSummary">Nenhuma conta cadastrada</p></div>
-            <div class="heading-actions">
-              <button class="button button-secondary compact-action" id="openCards">Cartões</button>
-              <button class="button button-secondary compact-action" id="openInstallment">Compra parcelada</button>
+            <div class="heading-actions">              
               <button class="button button-primary compact-action" id="openBill"><span aria-hidden="true">＋</span> Nova conta</button>
             </div>
           </div>
