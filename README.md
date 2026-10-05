@@ -1,19 +1,34 @@
 # Nosso Caixa
 
-Controle financeiro responsivo, instalável no celular e preparado para salvar um arquivo JSON por mês em um repositório privado do GitHub.
+Controle financeiro responsivo e instalável, com dados compartilhados entre computador e celular pelo Supabase e hospedagem estática no Netlify.
 
-## Recursos
+## Configurar o Supabase
 
-- Contas mensais e recorrentes, com alertas de vencimento e previsão de saldo.
-- Movimentações editáveis, duplicáveis e filtráveis.
-- Cartões e compras parceladas distribuídas nas faturas futuras.
-- Fechamento do mês, transporte de saldo e registro do valor reservado.
-- Divisão de despesas e acerto entre o casal sem distorcer receitas e gastos.
-- Histórico comparativo dos meses armazenados no aparelho.
+1. Crie um projeto no Supabase.
+2. Abra **SQL Editor**, cole o conteúdo de `supabase.sql` e execute.
+3. Em **Authentication > Users**, crie um usuário com e-mail e senha. Use `210321` como senha para manter o acesso por PIN.
+4. Em **Project Settings > API**, copie a Project URL e a chave pública (`publishable` ou `anon`). Nunca use a chave `service_role` no navegador.
+5. Preencha `supabase-config.js`:
+
+```js
+window.NOSSO_CAIXA_CONFIG = {
+  supabaseUrl: 'https://seu-projeto.supabase.co',
+  supabaseAnonKey: 'sua-chave-publica',
+  authEmail: 'o-mesmo-email-do-usuario-criado'
+};
+```
+
+A chave pública e a URL podem ficar no frontend. As políticas RLS de `supabase.sql` garantem que somente o usuário autenticado leia e altere os próprios dados.
+
+## Migrar os dados existentes
+
+Abra a nova versão no aparelho que contém os dados atuais e entre com o PIN. No primeiro acesso, os meses e configurações encontrados no `localStorage` são enviados automaticamente ao Supabase. A cópia local é mantida como cache para uso sem conexão.
+
+Faça essa primeira entrada no aparelho com os dados mais completos antes de acessar pelo segundo dispositivo.
 
 ## Executar localmente
 
-Sirva a pasta com qualquer servidor HTTP estático. Por exemplo:
+Sirva a pasta com um servidor HTTP estático:
 
 ```bash
 npx serve .
@@ -21,23 +36,24 @@ npx serve .
 
 O uso por `file://` não ativa o service worker.
 
-Para visualizar a interface com dados fictícios, acesse `/?demo=1`. A versão normal começa vazia para evitar que exemplos sejam enviados por engano ao repositório.
+## Publicar no Netlify
 
-## Publicar
+Crie um site no Netlify e publique esta pasta. O arquivo `netlify.toml` já define a raiz como diretório de publicação e evita cache persistente do service worker e da configuração.
 
-Ative o GitHub Pages para a branch principal. Mantenha os dados financeiros em outro repositório privado e configure a conexão dentro do aplicativo.
+O site não precisa de funções de servidor: o navegador conversa diretamente com o Supabase usando a sessão autenticada e as políticas RLS.
 
-O token refinado deve ter acesso somente ao repositório de dados, com a permissão `Contents: Read and write`. A conexão fica salva no `localStorage` deste aparelho. Ao abrir o aplicativo ou alterar um mês, os dados são sincronizados automaticamente; se a internet estiver indisponível, a cópia local continua funcionando.
+## Estrutura dos dados
 
-## Arquivos mensais
+- `monthly_data`: um documento JSON por usuário e mês.
+- `app_config`: cartões, recorrências, parcelamentos e preferências.
+- `localStorage`: cache offline e origem da importação inicial.
 
-Cada sincronização cria ou atualiza:
+As alterações são salvas automaticamente. Quando dois aparelhos estão abertos, o Supabase Realtime distribui a versão mais recente.
 
-```text
-dados/AAAA/AAAA-MM.json
-dados/config.json
-```
+## Regras financeiras
 
-O arquivo `config.json` guarda cartões, recorrências e planos de parcelamento. Os arquivos mensais continuam contendo somente os dados daquele período.
-
-Para exportar um relatório, use o botão de download e escolha **Salvar como PDF** na janela de impressão do aparelho.
+- As rendas fixas de Nicolas e Isabella, informadas no planejamento, contam como entradas do mês.
+- Entradas avulsas somam à renda fixa; saídas pagas reduzem o saldo; contas pendentes afetam apenas a projeção.
+- O saldo trazido do mês anterior compõe o saldo atual, mas não é contado novamente como renda.
+- Transferências entre Nicolas, Isabella e o saldo compartilhado apenas redistribuem o dinheiro e não alteram entradas, saídas ou saldo total.
+- O histórico usa as mesmas regras do painel: renda fixa mais entradas avulsas, sem duplicar o saldo inicial.

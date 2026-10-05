@@ -13,7 +13,24 @@
     <link rel="manifest" href="manifest.webmanifest" />
     <link rel="icon" href="icon.svg" type="image/svg+xml" />
   </head>
-  <body>
+  <body class="auth-pending">
+    <section class="auth-gate" id="authGate" aria-labelledby="authTitle">
+      <div class="auth-panel">
+        <span class="auth-brand" aria-hidden="true"><i></i><i></i><i></i></span>
+        <div>
+          <h1 id="authTitle">Nosso Caixa</h1>
+          <p id="authDescription">Digite o PIN para acessar os dados do casal.</p>
+        </div>
+        <form id="pinForm" class="pin-form">
+          <label for="pinInput">PIN de acesso</label>
+          <input id="pinInput" name="pin" type="password" inputmode="numeric" pattern="[0-9]{6}" minlength="6" maxlength="6" autocomplete="current-password" aria-describedby="pinHelp pinError" required />
+          <small id="pinHelp">Use os 6 números cadastrados no Supabase.</small>
+          <p class="auth-error" id="pinError" role="alert" hidden></p>
+          <button class="button button-primary" id="pinSubmit" type="submit">Entrar</button>
+        </form>
+      </div>
+    </section>
+
     <aside class="sidebar" aria-label="Navegação principal">
       <a class="brand" href="#inicio" aria-label="Nosso Caixa — início">
         <span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i></span>
@@ -26,8 +43,8 @@
         <a class="nav-item" href="#historico" data-view="historico"><span aria-hidden="true"> </span>Histórico</a>
       </nav>
       <div class="sidebar-foot">
-        <button class="nav-item button-reset" id="settingsButton"><span aria-hidden="true"></span>Conectar GitHub</button>
-        <span class="sync-note"><i id="syncDot"></i><span id="syncText">Salvo neste aparelho</span></span>
+        <button class="nav-item button-reset" id="settingsButton"><span aria-hidden="true">&#8594;</span>Sair</button>
+        <span class="sync-note"><i id="syncDot"></i><span id="syncText">Conectando ao Supabase</span></span>
       </div>
     </aside>
 
@@ -40,12 +57,13 @@
         <button class="month-nav-button" id="nextMonth" aria-label="Próximo mês">
           <svg viewBox="0 0 20 20" aria-hidden="true"><path d="m8 5 5 5-5 5" /></svg>
         </button>
-        <button class="sync-button" id="syncButton"><span aria-hidden="true">↻</span><span>Sincronizar</span></button>
+        <button class="icon-button session-button" id="logoutButton" type="button" aria-label="Sair do aplicativo">&#8594;</button>
         <button class="button close-month-button" id="closeMonthButton">Fechar mês</button>
       </section>
 
       <section class="app-view" id="inicio" data-page="dashboard">
-        <section class="ledger-hero" aria-labelledby="balanceLabel">
+        <div class="overview-layout">
+          <section class="ledger-hero" aria-labelledby="balanceLabel">
           <div class="balance-block">
             <p id="balanceLabel">Saldo total do mês</p>
             <strong id="balanceValue">R$ 0,00</strong>
@@ -55,13 +73,14 @@
             <canvas id="balanceChart" role="img" aria-label="Evolução do saldo durante o mês"></canvas>
           </div>
           <dl class="hero-totals">
-            <div><dt>Entradas</dt><dd class="positive" id="incomeValue">R$ 0,00</dd></div>
+            <div><dt>Entradas do mês</dt><dd class="positive" id="incomeValue">R$ 0,00</dd></div>
             <div><dt>Saídas</dt><dd id="expenseValue">R$ 0,00</dd></div>
+            <div><dt>Gasolina no mês</dt><dd id="gasolineValue">R$ 0,00</dd></div>
             <div><dt>Após contas pendentes</dt><dd id="projectedValue">R$ 0,00</dd></div>
           </dl>
-        </section>
+          </section>
 
-        <section class="ownership-summary" aria-labelledby="ownershipTitle">
+          <section class="ownership-summary" aria-labelledby="ownershipTitle">
           <div class="ownership-heading">
             <div>
               <h2 id="ownershipTitle">Como o saldo está dividido</h2>
@@ -86,7 +105,8 @@
               <small>O valor que pertence a vocês dois</small>
             </div>
           </dl>
-        </section>
+          </section>
+        </div>
 
         <div class="dashboard-grid">
           <section class="panel rhythm-panel" aria-labelledby="rhythmTitle">
@@ -107,24 +127,26 @@
             </div>
           </section>
 
-          <section class="panel plan-panel" id="planejamento" aria-labelledby="planTitle">
-            <div class="panel-heading">
-              <div><h2 id="planTitle">Plano do mês</h2><p>Limite e reserva combinados</p></div>
-              <button class="icon-button subtle" id="editPlan" aria-label="Editar planejamento">✎</button>
-            </div>
-            <div class="plan-summary">
-              <div class="plan-gauge" id="planGauge"><span id="planPercent">0%</span></div>
-              <div><strong id="remainingBudget">R$ 0,00</strong><p>disponíveis no orçamento</p></div>
-            </div>
-            <div class="goal-row"><span>Reserva do casal</span><strong id="goalValue">R$ 0,00</strong></div>
-          </section>
+          <div class="planning-cluster" role="group" aria-label="Planejamento do mês">
+            <section class="panel plan-panel" id="planejamento" aria-labelledby="planTitle">
+              <div class="panel-heading">
+                <div><h2 id="planTitle">Plano do mês</h2><p>Limite e reserva combinados</p></div>
+                <button class="icon-button subtle" id="editPlan" aria-label="Editar planejamento">✎</button>
+              </div>
+              <div class="plan-summary">
+                <div class="plan-gauge" id="planGauge"><span id="planPercent">0%</span></div>
+                <div><strong id="remainingBudget">R$ 0,00</strong><p>disponíveis no orçamento</p></div>
+              </div>
+              <div class="goal-row"><span>Reserva do casal</span><strong id="goalValue">R$ 0,00</strong></div>
+            </section>
 
-          <section class="panel alerts-panel" aria-labelledby="alertsTitle">
-            <div class="panel-heading">
-              <div><h2 id="alertsTitle">Atenção neste mês</h2><p>Vencimentos e riscos do planejamento</p></div>
-            </div>
-            <div class="alert-list" id="alertList"></div>
-          </section>
+            <section class="panel alerts-panel" aria-labelledby="alertsTitle">
+              <div class="panel-heading">
+                <div><h2 id="alertsTitle">Atenção neste mês</h2><p>Vencimentos e riscos do planejamento</p></div>
+              </div>
+              <div class="alert-list" id="alertList"></div>
+            </section>
+          </div>
 
           <section class="panel settlement-panel" aria-labelledby="settlementTitle">
             <div class="panel-heading">
@@ -173,12 +195,12 @@
       <section class="app-view history-view" id="historico" data-page="history" hidden>
         <section class="panel history-panel">
           <div class="panel-heading">
-            <div><h2>Evolução financeira</h2><p>Comparação dos meses salvos neste aparelho</p></div>
+            <div><h2>Evolução financeira</h2><p>Comparação dos meses salvos no Supabase</p></div>
             <select id="historyRange" aria-label="Período do histórico"><option value="6">6 meses</option><option value="12">12 meses</option></select>
           </div>
           <div class="history-summary" id="historySummary"></div>
           <div class="history-bars" id="historyBars"></div>
-          <div class="history-table-wrap"><table class="history-table"><thead><tr><th>Mês</th><th>Entradas</th><th>Saídas</th><th>Reservado</th><th>Saldo final</th></tr></thead><tbody id="historyTableBody"></tbody></table></div>
+          <div class="history-table-wrap"><table class="history-table"><thead><tr><th>Mês</th><th>Entradas do mês</th><th>Saídas</th><th>Reservado</th><th>Saldo final</th></tr></thead><tbody id="historyTableBody"></tbody></table></div>
         </section>
       </section>
     </main>
@@ -229,31 +251,17 @@
 
     <dialog id="planDialog" class="dialog compact-dialog">
       <form method="dialog" id="planForm">
-        <div class="dialog-head"><div><h2>Planejamento</h2><p>Separe o dinheiro disponível de cada um.</p></div><button class="icon-button subtle" value="cancel" aria-label="Fechar">×</button></div>
+        <div class="dialog-head"><div><h2>Planejamento</h2><p>Informe a renda prevista de cada um no mês.</p></div><button class="icon-button subtle" value="cancel" aria-label="Fechar">×</button></div>
         <fieldset class="plan-owner-fields">
-          <legend>Dinheiro disponível no mês</legend>
-          <p>Os dois valores formam o limite mensal e aparecem nos saldos acima.</p>
+          <legend>Salários e rendas fixas</legend>
+          <p>Os dois valores formam o limite mensal e contam como entradas nos saldos, no gráfico e no histórico.</p>
           <div class="form-row">
-            <label>Dinheiro de Nicolas<input name="yourBudget" inputmode="decimal" placeholder="0,00" /></label>
-            <label>Dinheiro de Isabella<input name="partnerBudget" inputmode="decimal" placeholder="0,00" /></label>
+            <label>Renda de Nicolas<input name="yourBudget" inputmode="decimal" placeholder="0,00" /></label>
+            <label>Renda de Isabella<input name="partnerBudget" inputmode="decimal" placeholder="0,00" /></label>
           </div>
         </fieldset>
         <label>Meta para a reserva<input name="goal"  inputmode="decimal" /></label>
         <button class="button button-primary full" type="submit">Salvar planejamento</button>
-      </form>
-    </dialog>
-
-    <dialog id="settingsDialog" class="dialog compact-dialog">
-      <form method="dialog" id="settingsForm">
-        <div class="dialog-head"><div><h2>Conectar ao GitHub</h2><p>Os dados ficam em um repositório privado.</p></div><button class="icon-button subtle" value="cancel" aria-label="Fechar">×</button></div>
-        <div class="settings-fields">
-          <div class="privacy-note"><strong>Seu token não vai para o código.</strong><span>Ele fica salvo neste aparelho para carregar e sincronizar seus dados automaticamente. Use acesso “Contents: read and write” somente ao repositório de dados.</span></div>
-          <label>Usuário ou organização<input name="owner" value="nicolasbruski" autocomplete="username" /></label>
-          <label>Repositório de dados<input name="repo" value="sistema-financeiro" /></label>
-          <label>Branch<input name="branch" value="main" /></label>
-          <label>Token de acesso<input name="token" type="password" autocomplete="off" placeholder="github_pat_..." /><small>Deixe em branco para manter o token já salvo.</small></label>
-        </div>
-        <button class="button button-primary full settings-submit" type="submit">Salvar conexão e sincronizar</button>
       </form>
     </dialog>
 
@@ -335,6 +343,8 @@
     </dialog>
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase-config.js"></script>
     <script src="app.js"></script>
   </body>
 </html>

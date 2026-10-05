@@ -1,7 +1,7 @@
 const CATEGORIES = {
   Moradia: { color: '#2962ff' }, Alimentação: { color: '#0c9273' }, Transporte: { color: '#e15c47' },
   Lazer: { color: '#8c62d6' }, Saúde: { color: '#df9e2f' }, Presente: { color: '#bd4f8f' },
-  Trabalho: { color: '#277f9d' }, Carro: { color: '#c6533f' }, Eletrônico: { color: '#5865c7' },
+  Trabalho: { color: '#277f9d' }, Carro: { color: '#c6533f' }, Gasolina: { color: '#c77a18' }, Eletrônico: { color: '#5865c7' },
   Estudos: { color: '#9a6b16' }, Outros: { color: '#778397' }, Receita: { color: '#0c9273' }
 };
 const CASH_FLOW_ICONS = {
@@ -11,15 +11,17 @@ const CASH_FLOW_ICONS = {
 };
 const OWNERS = ['Você', 'Namorada', 'Casal'];
 const OWNER_LABELS = { 'Você': 'Nicolas', Namorada: 'Isabella', Casal: 'Compartilhado' };
-const GITHUB_SETTINGS_KEY = 'nosso-caixa:github';
-const GITHUB_TOKEN_KEY = 'nosso-caixa:github-token';
 const CONFIG_KEY = 'nosso-caixa:config';
 const MONTH_PREFIX = 'nosso-caixa:';
+const SUPABASE_CONFIG = window.NOSSO_CAIXA_CONFIG || {};
 const today = new Date();
 let cursor = new Date(today.getFullYear(), today.getMonth(), 1);
 let monthData = null;
 let appConfig = loadConfig();
-let autoSyncTimer = null;
+let supabaseClient = null;
+let currentUser = null;
+let realtimeChannel = null;
+const remoteSyncTimers = new Map();
 
 const $ = selector => document.querySelector(selector);
 const money = (cents, digits = 2) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: digits, maximumFractionDigits: digits }).format((Number(cents) || 0) / 100);
@@ -30,8 +32,9 @@ const ownerClass = owner => owner === 'Namorada' ? 'partner' : owner === 'Casal'
 const uid = () => crypto.randomUUID();
 
 function emptyMonth(key = monthKey()) {
-  return { version: 4, month: key, budget: 0, savingsGoal: 0, savedAmount: 0, openingBalance: 0,
-    openingBalances: { 'Você': 0, Namorada: 0, Casal: 0 }, status: 'open', closedAt: null, bills: [], transactions: [] };
+  return { version: 6, month: key, budget: 0, savingsGoal: 0, savedAmount: 0, openingBalance: 0,
+    openingBalances: { 'Você': 0, Namorada: 0, Casal: 0 }, monthlyIncome: { 'Você': 0, Namorada: 0 },
+    status: 'open', closedAt: null, bills: [], transactions: [] };
 }
 function defaultConfig() { return { version: 1, updatedAt: null, recurringBills: [], cards: [], installmentPlans: [], splitYou: 50 }; }
 function safeJson(raw, fallback) { try { return raw ? JSON.parse(raw) : fallback; } catch (_) { return fallback; } }
@@ -46,7 +49,7 @@ function loadConfig() { return loadConfigFrom(safeJson(localStorage.getItem(CONF
 function saveConfig(schedule = true) {
   appConfig.updatedAt = new Date().toISOString();
   localStorage.setItem(CONFIG_KEY, JSON.stringify(appConfig));
-  if (schedule) scheduleGithubSync();
+  if (schedule) scheduleConfigSync();
 }
 
 function normalizeMonth(data, key = monthKey()) {
@@ -57,21 +60,46 @@ function normalizeMonth(data, key = monthKey()) {
     normalized.openingBalances = { 'Você': !hasIncome && !normalized.openingBalance ? Number(normalized.budget) || 0 : 0, Namorada: 0, Casal: Number(normalized.openingBalance) || 0 };
   }
   normalized.openingBalances = { 'Você': Number(normalized.openingBalances?.['Você']) || 0, Namorada: Number(normalized.openingBalances?.Namorada) || 0, Casal: Number(normalized.openingBalances?.Casal) || 0 };
+  if (!source.monthlyIncome) {
+    const legacyPlanWasIncome = !source.openingFrom;
+    normalized.monthlyIncome = legacyPlanWasIncome
+      ? { 'Você': normalized.openingBalances['Você'], Namorada: normalized.openingBalances.Namorada }
+      : { 'Você': 0, Namorada: 0 };
+    if (legacyPlanWasIncome) {
+      normalized.openingBalances['Você'] = 0;
+      normalized.openingBalances.Namorada = 0;
+    }
+  }
+  normalized.monthlyIncome = { 'Você': Number(normalized.monthlyIncome?.['Você']) || 0, Namorada: Number(normalized.monthlyIncome?.Namorada) || 0 };
+  const needsV5PlanRepair = Number(source.version) === 5 && !source.openingFrom
+    && (normalized.openingBalances['Você'] || normalized.openingBalances.Namorada);
+  if (needsV5PlanRepair) {
+    normalized.monthlyIncome = {
+      'Você': normalized.monthlyIncome['Você'] || normalized.openingBalances['Você'],
+      Namorada: normalized.monthlyIncome.Namorada || normalized.openingBalances.Namorada
+    };
+    normalized.openingBalances['Você'] = 0;
+    normalized.openingBalances.Namorada = 0;
+  }
   normalized.bills = Array.isArray(normalized.bills) ? normalized.bills.map(bill => ({ paid: false, transactionId: null, scope: bill.paidBy === 'Casal' ? 'shared' : 'individual', splitYou: 50, ...bill })) : [];
   normalized.transactions = Array.isArray(normalized.transactions) ? normalized.transactions.map(transaction => ({ scope: transaction.paidBy === 'Casal' ? 'shared' : 'individual', splitYou: 50, ...transaction })) : [];
-  normalized.budget = Number(normalized.budget) || normalized.openingBalances['Você'] + normalized.openingBalances.Namorada + normalized.openingBalances.Casal;
+  normalized.budget = Number(normalized.budget) || monthlyIncomeTotal(normalized);
   normalized.savingsGoal = Number(normalized.savingsGoal) || 0;
   normalized.savedAmount = Number(normalized.savedAmount) || 0;
   normalized.status = normalized.status === 'closed' ? 'closed' : 'open';
-  normalized.version = 4;
+  normalized.version = 6;
   return normalized;
 }
 function parseMonthKey(key) { const [year, month] = key.split('-').map(Number); return new Date(year, month - 1, 1); }
 function addMonths(key, amount) { const date = parseMonthKey(key); date.setMonth(date.getMonth() + amount); return monthKey(date); }
 function monthsBetween(from, to) { const start = parseMonthKey(from), end = parseMonthKey(to); return (end.getFullYear() - start.getFullYear()) * 12 + end.getMonth() - start.getMonth(); }
 function readMonth(key) { return normalizeMonth(safeJson(localStorage.getItem(storageKey(key)), {}), key); }
-function writeMonth(key, data) { data.updatedAt = new Date().toISOString(); localStorage.setItem(storageKey(key), JSON.stringify(normalizeMonth(data, key))); }
-function hasMonthValues(data) { return Boolean(OWNERS.some(owner => data.openingBalances?.[owner]) || data.savingsGoal || data.savedAmount || data.transactions?.length || data.bills?.length || data.status === 'closed'); }
+function writeMonth(key, data, schedule = true) {
+  data.updatedAt = new Date().toISOString();
+  localStorage.setItem(storageKey(key), JSON.stringify(normalizeMonth(data, key)));
+  if (schedule) scheduleMonthSync(key);
+}
+function hasMonthValues(data) { return Boolean(OWNERS.some(owner => data.openingBalances?.[owner]) || Object.values(data.monthlyIncome || {}).some(Boolean) || data.savingsGoal || data.savedAmount || data.transactions?.length || data.bills?.length || data.status === 'closed'); }
 
 function materializeScheduledItems() {
   if (monthData.status === 'closed') return false;
@@ -114,21 +142,31 @@ function loadMonth() {
   if (!raw && key === '2026-09' && new URLSearchParams(location.search).has('demo')) seedDemo();
   const generated = materializeScheduledItems();
   if (generated || (raw && JSON.stringify(safeJson(raw, {})) !== JSON.stringify(monthData))) writeMonth(key, monthData);
-  render(); scheduleGithubSync(150);
+  render();
+  if (hasMonthValues(monthData)) scheduleMonthSync(key, 150);
 }
 function saveLocal(feedback = true) {
-  writeMonth(monthKey(), monthData); $('#syncText').textContent = 'Alterações salvas neste aparelho';
-  if (feedback) toast('Alteração salva neste aparelho'); scheduleGithubSync();
+  writeMonth(monthKey(), monthData); setSyncState('Salvando no Supabase...');
+  if (feedback) toast('Alteração salva');
 }
 
+function monthlyIncomeTotal(data = monthData) { return ['Você', 'Namorada'].reduce((sum, owner) => sum + (Number(data.monthlyIncome?.[owner]) || 0), 0); }
 function totals(data = monthData) {
-  const income = data.transactions.filter(item => item.type === 'income').reduce((sum, item) => sum + item.value, 0);
+  const fixedIncome = monthlyIncomeTotal(data);
+  const variableIncome = data.transactions.filter(item => item.type === 'income').reduce((sum, item) => sum + item.value, 0);
+  const income = fixedIncome + variableIncome;
   const expense = data.transactions.filter(item => item.type === 'expense').reduce((sum, item) => sum + item.value, 0);
   const opening = OWNERS.reduce((sum, owner) => sum + (Number(data.openingBalances?.[owner]) || 0), 0);
-  return { income, expense, opening, balance: opening + income - expense };
+  return { income, fixedIncome, variableIncome, expense, opening, balance: opening + income - expense };
+}
+function gasolineExpenseTotal(data = monthData) {
+  return data.transactions
+    .filter(item => item.type === 'expense' && (item.category === 'Gasolina' || /\b(gasolina|combust[ií]vel)\b/i.test(item.description || '')))
+    .reduce((sum, item) => sum + item.value, 0);
 }
 function ownerTotals(data = monthData) {
   const balances = Object.fromEntries(OWNERS.map(owner => [owner, Number(data.openingBalances?.[owner]) || 0]));
+  ['Você', 'Namorada'].forEach(owner => { balances[owner] += Number(data.monthlyIncome?.[owner]) || 0; });
   data.transactions.forEach(transaction => {
     if (transaction.type === 'transfer') { if (balances[transaction.from] !== undefined) balances[transaction.from] -= transaction.value; if (balances[transaction.to] !== undefined) balances[transaction.to] += transaction.value; return; }
     const owner = balances[transaction.paidBy] === undefined ? 'Casal' : transaction.paidBy;
@@ -157,7 +195,7 @@ function render() {
   const summary = totals(), balances = ownerTotals(), pending = pendingBillsTotal(), committed = summary.expense + pending, projected = summary.balance - pending;
   const name = new Intl.DateTimeFormat('pt-BR', { month: 'long' }).format(cursor);
   $('#monthName').textContent = name.charAt(0).toUpperCase() + name.slice(1); $('#yearName').textContent = cursor.getFullYear();
-  $('#balanceValue').textContent = money(summary.balance); $('#incomeValue').textContent = money(summary.income); $('#expenseValue').textContent = money(summary.expense); if ($('#pendingValue')) $('#pendingValue').textContent = money(pending);
+  $('#balanceValue').textContent = money(summary.balance); $('#incomeValue').textContent = money(summary.income); $('#expenseValue').textContent = money(summary.expense); $('#gasolineValue').textContent = money(gasolineExpenseTotal()); if ($('#pendingValue')) $('#pendingValue').textContent = money(pending);
   $('#projectedValue').textContent = money(projected); $('#projectedValue').classList.toggle('negative', projected < 0);
   $('#balanceDelta').textContent = monthData.budget ? (committed <= monthData.budget ? `${money(monthData.budget - committed)} livres no plano` : `${money(committed - monthData.budget)} acima do plano`) : 'Defina um limite no planejamento';
   $('#yourBalance').textContent = money(balances['Você']); $('#partnerBalance').textContent = money(balances.Namorada); $('#sharedBalance').textContent = money(balances.Casal);
@@ -243,7 +281,8 @@ function renderBalanceChart() {
   const canvas = $('#balanceChart'), rect = canvas.getBoundingClientRect(); if (!rect.width || !rect.height) return;
   const dpr = window.devicePixelRatio || 1; canvas.width = Math.max(1, rect.width * dpr); canvas.height = Math.max(1, rect.height * dpr);
   const ctx = canvas.getContext('2d'); ctx.scale(dpr, dpr);
-  const initial = OWNERS.reduce((sum, owner) => sum + monthData.openingBalances[owner], 0), values = [initial]; let running = initial;
+  const initial = OWNERS.reduce((sum, owner) => sum + monthData.openingBalances[owner], 0), fixedIncome = monthlyIncomeTotal(), values = [initial]; let running = initial;
+  if (fixedIncome) { running += fixedIncome; values.push(running); }
   [...monthData.transactions].filter(item => item.type !== 'transfer').sort((a, b) => (a.date || '').localeCompare(b.date || '')).forEach(item => { running += item.type === 'income' ? item.value : -item.value; values.push(running); });
   if (values.length === 1) values.push(values[0]);
   const min = Math.min(...values), max = Math.max(...values), spread = Math.max(1, max - min);
@@ -338,52 +377,181 @@ function openCloseMonth() {
 function reopenMonth() {
   if (!confirm('Reabrir este mês para edição?')) return;
   const nextKey = addMonths(monthKey(), 1), next = readMonth(nextKey);
-  if (next.openingFrom === monthKey()) { next.openingBalances = { 'Você': 0, Namorada: 0, Casal: 0 }; next.openingFrom = null; next.bills = next.bills.filter(bill => bill.carriedFrom !== monthKey()); writeMonth(nextKey, next); }
+  if (next.openingFrom === monthKey()) { next.openingBalances = { 'Você': 0, Namorada: 0, Casal: 0 }; next.openingFrom = null; next.budget = monthlyIncomeTotal(next); next.bills = next.bills.filter(bill => bill.carriedFrom !== monthKey()); writeMonth(nextKey, next); }
   monthData.status = 'open'; monthData.closedAt = null; saveLocal(false); render(); toast('Mês reaberto');
 }
 
-function getGithubConnection() {
-  const settings = safeJson(localStorage.getItem(GITHUB_SETTINGS_KEY), {}), sessionToken = sessionStorage.getItem('nosso-caixa:token');
-  let token = localStorage.getItem(GITHUB_TOKEN_KEY) || sessionToken || '';
-  if (sessionToken && !localStorage.getItem(GITHUB_TOKEN_KEY)) { localStorage.setItem(GITHUB_TOKEN_KEY, sessionToken); sessionStorage.removeItem('nosso-caixa:token'); }
-  return { ...settings, token };
+function setSyncState(message, stale = false) {
+  $('#syncText').textContent = message;
+  $('#syncDot').classList.toggle('is-stale', stale);
 }
-function scheduleGithubSync(delay = 700) { const connection = getGithubConnection(); if (!connection.owner || !connection.repo || !connection.token) return; clearTimeout(autoSyncTimer); autoSyncTimer = setTimeout(() => syncGithub({ silent: true }), delay); }
-async function githubErrorMessage(response, fallback) {
-  let detail = ''; try { detail = (await response.json()).message || ''; } catch (_) {}
-  const messages = { 401: 'Token do GitHub inválido ou expirado', 403: 'Token sem permissão Contents: read and write', 404: 'Repositório não encontrado ou token sem acesso', 409: 'O GitHub não conseguiu inicializar o repositório vazio', 422: 'Branch ou dados da conexão inválidos' };
-  return messages[response.status] || detail || `${fallback} (${response.status})`;
+
+function configuredForSupabase() {
+  let validUrl = false;
+  try { validUrl = new URL(SUPABASE_CONFIG.supabaseUrl).protocol === 'https:'; } catch (_) {}
+  return validUrl && Boolean(SUPABASE_CONFIG.supabaseAnonKey)
+    && !String(SUPABASE_CONFIG.supabaseAnonKey).includes('SUA_CHAVE')
+    && /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(SUPABASE_CONFIG.authEmail || '');
 }
-function encodeGithub(data) { return btoa(unescape(encodeURIComponent(JSON.stringify(data, null, 2)))); }
-function decodeGithub(content) { return JSON.parse(decodeURIComponent(escape(atob(content.replace(/\s/g, ''))))); }
-async function syncDocument({ path, localData, headers, baseUrl, branch, normalize }) {
-  const url = `${baseUrl}/${path}`, current = await fetch(`${url}?ref=${encodeURIComponent(branch)}`, { headers }); let sha;
-  if (current.ok) {
-    const file = await current.json(), remoteData = normalize(decodeGithub(file.content)); sha = file.sha;
-    if (new Date(remoteData.updatedAt || 0).getTime() > new Date(localData.updatedAt || 0).getTime()) return { data: remoteData, loaded: true };
-    if (file.content.replace(/\s/g, '') === encodeGithub(localData)) return { data: localData, unchanged: true };
-  } else if (current.status !== 404 && current.status !== 409) throw new Error(await githubErrorMessage(current, 'GitHub respondeu'));
-  const body = { message: `Atualiza ${path}`, content: encodeGithub(localData), ...(current.status !== 409 && { branch }), ...(sha && { sha }) };
-  const response = await fetch(url, { method: 'PUT', headers: { ...headers, 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-  if (!response.ok) throw new Error(await githubErrorMessage(response, 'Não foi possível salvar'));
-  return { data: localData, saved: true };
+
+function localMonthKeys() {
+  const keys = [];
+  for (let index = 0; index < localStorage.length; index++) {
+    const match = localStorage.key(index)?.match(/^nosso-caixa:(\d{4}-\d{2})$/);
+    if (match) keys.push(match[1]);
+  }
+  return [...new Set(keys)].sort();
 }
-async function syncGithub({ silent = false } = {}) {
-  const settings = getGithubConnection(); if (!settings.owner || !settings.repo || !settings.token) { if (!silent) { openSettings(); toast('Informe a conexão com o GitHub'); } return; }
-  clearTimeout(autoSyncTimer); const targetMonth = monthKey(), button = $('#syncButton'); button.disabled = true; button.querySelector('span:last-child').textContent = 'Salvando...';
+
+function newerThan(first, second) {
+  return new Date(first || 0).getTime() > new Date(second || 0).getTime();
+}
+
+async function saveMonthRemote(key) {
+  if (!supabaseClient || !currentUser || !navigator.onLine) { setSyncState('Sem conexão — salvo neste aparelho', true); return; }
+  const data = readMonth(key);
+  if (!hasMonthValues(data)) return;
+  const { error } = await supabaseClient.from('monthly_data').upsert({ user_id: currentUser.id, month: key, data, updated_at: data.updatedAt || new Date().toISOString() });
+  if (error) throw error;
+  setSyncState('Salvo no Supabase');
+}
+
+async function saveConfigRemote() {
+  if (!supabaseClient || !currentUser || !navigator.onLine) { setSyncState('Sem conexão — salvo neste aparelho', true); return; }
+  const { error } = await supabaseClient.from('app_config').upsert({ user_id: currentUser.id, data: appConfig, updated_at: appConfig.updatedAt || new Date().toISOString() });
+  if (error) throw error;
+  setSyncState('Salvo no Supabase');
+}
+
+function scheduleRemoteSync(name, action, delay = 700) {
+  if (!currentUser) return;
+  clearTimeout(remoteSyncTimers.get(name));
+  setSyncState(navigator.onLine ? 'Salvando no Supabase...' : 'Sem conexão — salvo neste aparelho', !navigator.onLine);
+  remoteSyncTimers.set(name, setTimeout(async () => {
+    remoteSyncTimers.delete(name);
+    try { await action(); }
+    catch (error) { setSyncState('Não foi possível sincronizar', true); console.error(error); }
+  }, delay));
+}
+
+function scheduleMonthSync(key, delay = 700) { scheduleRemoteSync(`month:${key}`, () => saveMonthRemote(key), delay); }
+function scheduleConfigSync(delay = 700) { scheduleRemoteSync('config', saveConfigRemote, delay); }
+
+async function reconcileSupabase({ silent = false } = {}) {
+  if (!supabaseClient || !currentUser) return;
+  setSyncState('Sincronizando...');
   try {
-    const baseUrl = `https://api.github.com/repos/${encodeURIComponent(settings.owner)}/${encodeURIComponent(settings.repo)}/contents`;
-    const headers = { Accept: 'application/vnd.github+json', Authorization: `Bearer ${settings.token}`, 'X-GitHub-Api-Version': '2022-11-28' }, options = { headers, baseUrl, branch: settings.branch || 'main' };
-    if (hasMonthValues(monthData)) { const result = await syncDocument({ ...options, path: `dados/${cursor.getFullYear()}/${targetMonth}.json`, localData: monthData, normalize: value => normalizeMonth(value, targetMonth) }); if (result.loaded) { monthData = result.data; localStorage.setItem(storageKey(targetMonth), JSON.stringify(monthData)); } }
-    const configResult = await syncDocument({ ...options, path: 'dados/config.json', localData: appConfig, normalize: loadConfigFrom });
-    if (configResult.loaded) { appConfig = configResult.data; localStorage.setItem(CONFIG_KEY, JSON.stringify(appConfig)); if (materializeScheduledItems()) writeMonth(targetMonth, monthData); }
-    render(); $('#syncText').textContent = 'Sincronizado com o GitHub'; if (!silent) toast('Dados sincronizados com o GitHub');
-  } catch (error) { $('#syncText').textContent = `GitHub: ${error.message}`; if (!silent || navigator.onLine) toast(error.message); }
-  finally { button.disabled = false; button.querySelector('span:last-child').textContent = 'Sincronizar'; }
+    const [monthsResult, configResult] = await Promise.all([
+      supabaseClient.from('monthly_data').select('month,data,updated_at').eq('user_id', currentUser.id),
+      supabaseClient.from('app_config').select('data,updated_at').eq('user_id', currentUser.id).maybeSingle()
+    ]);
+    if (monthsResult.error) throw monthsResult.error;
+    if (configResult.error) throw configResult.error;
+
+    const remoteMonths = new Map((monthsResult.data || []).map(row => [row.month, row]));
+    const allMonths = new Set([...localMonthKeys(), ...remoteMonths.keys()]);
+    const uploads = [];
+    allMonths.forEach(key => {
+      const localRaw = safeJson(localStorage.getItem(storageKey(key)), null), remote = remoteMonths.get(key);
+      if (remote && (!localRaw || newerThan(remote.updated_at, localRaw.updatedAt))) {
+        const data = normalizeMonth({ ...remote.data, updatedAt: remote.data?.updatedAt || remote.updated_at }, key);
+        localStorage.setItem(storageKey(key), JSON.stringify(data));
+      } else if (localRaw) {
+        const data = normalizeMonth(localRaw, key);
+        if (hasMonthValues(data) && (!remote || newerThan(data.updatedAt, remote.updated_at))) uploads.push({ user_id: currentUser.id, month: key, data, updated_at: data.updatedAt || new Date().toISOString() });
+      }
+    });
+    if (uploads.length) {
+      const { error } = await supabaseClient.from('monthly_data').upsert(uploads);
+      if (error) throw error;
+    }
+
+    const remoteConfig = configResult.data;
+    if (remoteConfig && newerThan(remoteConfig.updated_at, appConfig.updatedAt)) {
+      appConfig = loadConfigFrom({ ...remoteConfig.data, updatedAt: remoteConfig.data?.updatedAt || remoteConfig.updated_at });
+      localStorage.setItem(CONFIG_KEY, JSON.stringify(appConfig));
+    } else if (!remoteConfig || newerThan(appConfig.updatedAt, remoteConfig.updated_at)) {
+      if (!appConfig.updatedAt) appConfig.updatedAt = new Date().toISOString();
+      await saveConfigRemote();
+    }
+
+    loadMonth(); renderCards(); syncRoute(); setSyncState('Salvo no Supabase');
+    if (!silent) toast('Dados sincronizados');
+  } catch (error) {
+    setSyncState(navigator.onLine ? 'Erro ao conectar ao Supabase' : 'Sem conexão — usando dados deste aparelho', true);
+    if (!monthData) { loadMonth(); renderCards(); syncRoute(); }
+    if (!silent) toast(error.message || 'Não foi possível sincronizar');
+    console.error(error);
+  }
 }
-function openSettings() {
-  const settings = getGithubConnection(), form = $('#settingsForm'); form.owner.value = settings.owner || 'nicolasbruski'; form.repo.value = settings.repo || 'sistema-financeiro'; form.branch.value = settings.branch || 'main';
-  form.token.value = ''; form.token.required = !settings.token; form.token.placeholder = settings.token ? 'Token salvo neste aparelho' : 'github_pat_...'; openDialog('#settingsDialog');
+
+function subscribeToChanges() {
+  if (!supabaseClient || !currentUser) return;
+  if (realtimeChannel) supabaseClient.removeChannel(realtimeChannel);
+  realtimeChannel = supabaseClient.channel(`finance-${currentUser.id}`)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'monthly_data', filter: `user_id=eq.${currentUser.id}` }, payload => {
+      const row = payload.new;
+      if (!row?.month || !row.data) return;
+      const local = safeJson(localStorage.getItem(storageKey(row.month)), {});
+      if (!newerThan(row.updated_at, local.updatedAt)) return;
+      localStorage.setItem(storageKey(row.month), JSON.stringify(normalizeMonth({ ...row.data, updatedAt: row.data.updatedAt || row.updated_at }, row.month)));
+      if (row.month === monthKey()) { monthData = readMonth(row.month); render(); }
+      setSyncState('Atualizado pelo Supabase');
+    })
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'app_config', filter: `user_id=eq.${currentUser.id}` }, payload => {
+      const row = payload.new;
+      if (!row?.data || !newerThan(row.updated_at, appConfig.updatedAt)) return;
+      appConfig = loadConfigFrom({ ...row.data, updatedAt: row.data.updatedAt || row.updated_at });
+      localStorage.setItem(CONFIG_KEY, JSON.stringify(appConfig));
+      renderCards();
+      setSyncState('Atualizado pelo Supabase');
+    })
+    .subscribe();
+}
+
+async function enterApp(user) {
+  currentUser = user;
+  localStorage.removeItem('nosso-caixa:github');
+  localStorage.removeItem('nosso-caixa:github-token');
+  sessionStorage.removeItem('nosso-caixa:token');
+  document.body.classList.remove('auth-pending');
+  document.body.classList.add('is-authenticated');
+  $('#authGate').hidden = true;
+  await reconcileSupabase({ silent: true });
+  subscribeToChanges();
+}
+
+function showAuthMessage(message, error = false) {
+  $('#authDescription').textContent = message;
+  $('#pinForm').hidden = error;
+  $('#pinError').hidden = true;
+}
+
+async function initializeSupabase() {
+  if (!configuredForSupabase()) {
+    showAuthMessage('Preencha a URL, a chave pública e o e-mail em supabase-config.js para concluir a configuração.', true);
+    return;
+  }
+  if (!window.supabase?.createClient) {
+    showAuthMessage('Não foi possível carregar a conexão com o Supabase. Verifique a internet e recarregue a página.', true);
+    return;
+  }
+  supabaseClient = window.supabase.createClient(SUPABASE_CONFIG.supabaseUrl, SUPABASE_CONFIG.supabaseAnonKey, { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false } });
+  const { data, error } = await supabaseClient.auth.getSession();
+  if (error) { showAuthMessage('Não foi possível recuperar a sessão. Digite o PIN novamente.'); return; }
+  if (data.session?.user) await enterApp(data.session.user);
+  else { document.body.classList.remove('auth-pending'); $('#pinInput').focus(); }
+}
+
+async function signOut() {
+  remoteSyncTimers.forEach(timer => clearTimeout(timer)); remoteSyncTimers.clear();
+  if (realtimeChannel) await supabaseClient.removeChannel(realtimeChannel);
+  await supabaseClient?.auth.signOut();
+  currentUser = null; realtimeChannel = null;
+  document.body.classList.remove('is-authenticated');
+  $('#authGate').hidden = false; $('#pinForm').hidden = false; $('#pinForm').reset();
+  $('#authDescription').textContent = 'Digite o PIN para acessar os dados do casal.';
+  $('#pinInput').focus();
 }
 function exportPdf() { exportPdf.previousTitle = document.title; document.title = `Nosso Caixa — ${$('#monthName').textContent} ${cursor.getFullYear()}`; toast('Escolha “Salvar como PDF” na janela de impressão'); setTimeout(() => window.print(), 250); }
 function setMonth(delta) { cursor = new Date(cursor.getFullYear(), cursor.getMonth() + delta, 1); loadMonth(); }
@@ -404,8 +572,8 @@ $('#quickIncome')?.addEventListener('click', () => { openTransaction(); $('#inco
 $('#quickBill')?.addEventListener('click', () => openBill());
 $('#quickPlan')?.addEventListener('click', () => $('#editPlan').click());
 $('#mobileAdd').addEventListener('click', () => { location.hash = 'gastos'; openTransaction(); });
-$('#settingsButton').addEventListener('click', openSettings);
-$('#syncButton').addEventListener('click', () => syncGithub());
+$('#settingsButton').addEventListener('click', signOut);
+$('#logoutButton').addEventListener('click', signOut);
 $('#previousMonth').addEventListener('click', () => setMonth(-1));
 $('#nextMonth').addEventListener('click', () => setMonth(1));
 $('#monthPicker').addEventListener('click', () => toast('Use as setas para navegar entre os meses'));
@@ -415,7 +583,7 @@ $('#historyRange').addEventListener('change', renderHistory);
 
 $('#editPlan').addEventListener('click', () => {
   if (!ensureOpenMonth()) return;
-  const form = $('#planForm'); setFormCurrency(form.yourBudget, monthData.openingBalances['Você']); setFormCurrency(form.partnerBudget, monthData.openingBalances.Namorada); setFormCurrency(form.goal, monthData.savingsGoal); openDialog('#planDialog');
+  const form = $('#planForm'); setFormCurrency(form.yourBudget, monthData.monthlyIncome['Você']); setFormCurrency(form.partnerBudget, monthData.monthlyIncome.Namorada); setFormCurrency(form.goal, monthData.savingsGoal); openDialog('#planDialog');
 });
 document.querySelectorAll('#transactionForm input[name="type"], #transactionForm input[name="scope"]').forEach(input => input.addEventListener('change', updateTransactionForm));
 
@@ -450,17 +618,17 @@ $('#billForm').addEventListener('submit', event => {
     const bill = monthData.bills.find(item => item.id === editId); if (!bill) return;
     Object.assign(bill, data, { description: bill.installmentPlanId ? `${description} (${bill.installmentNumber}/${bill.installmentCount})` : description });
     if (bill.transactionId) { const transaction = monthData.transactions.find(item => item.id === bill.transactionId); if (transaction) Object.assign(transaction, { description: bill.description, value, category: data.category, paidBy: data.paidBy, scope: data.scope, date: `${monthKey()}-${String(Math.min(dueDay, new Date(cursor.getFullYear(), cursor.getMonth() + 1, 0).getDate())).padStart(2, '0')}` }); }
-    if (bill.installmentPlanId && confirm('Aplicar esta alteração também às próximas parcelas?')) { const plan = appConfig.installmentPlans.find(item => item.id === bill.installmentPlanId); if (plan) Object.assign(plan, data, { description, installmentValue: value, totalValue: value * plan.installments }); saveConfig(false); }
-    if (bill.recurrenceId && form.get('recurring') && confirm('Aplicar esta alteração também aos próximos meses?')) { const template = appConfig.recurringBills.find(item => item.id === bill.recurrenceId); if (template) Object.assign(template, data); saveConfig(false); }
-    if (!bill.recurrenceId && form.get('recurring')) { const recurrence = { id: uid(), ...data, startMonth: monthKey(), endMonth: null, active: true }; appConfig.recurringBills.push(recurrence); bill.recurrenceId = recurrence.id; bill.generatedMonth = monthKey(); saveConfig(false); }
-    if (bill.recurrenceId && !form.get('recurring')) { const template = appConfig.recurringBills.find(item => item.id === bill.recurrenceId); if (template) { template.active = false; template.endMonth = monthKey(); } delete bill.recurrenceId; delete bill.generatedMonth; saveConfig(false); }
+    if (bill.installmentPlanId && confirm('Aplicar esta alteração também às próximas parcelas?')) { const plan = appConfig.installmentPlans.find(item => item.id === bill.installmentPlanId); if (plan) Object.assign(plan, data, { description, installmentValue: value, totalValue: value * plan.installments }); saveConfig(); }
+    if (bill.recurrenceId && form.get('recurring') && confirm('Aplicar esta alteração também aos próximos meses?')) { const template = appConfig.recurringBills.find(item => item.id === bill.recurrenceId); if (template) Object.assign(template, data); saveConfig(); }
+    if (!bill.recurrenceId && form.get('recurring')) { const recurrence = { id: uid(), ...data, startMonth: monthKey(), endMonth: null, active: true }; appConfig.recurringBills.push(recurrence); bill.recurrenceId = recurrence.id; bill.generatedMonth = monthKey(); saveConfig(); }
+    if (bill.recurrenceId && !form.get('recurring')) { const template = appConfig.recurringBills.find(item => item.id === bill.recurrenceId); if (template) { template.active = false; template.endMonth = monthKey(); } delete bill.recurrenceId; delete bill.generatedMonth; saveConfig(); }
   } else {
     if (installments > 1) {
       appConfig.installmentPlans.push({ id: uid(), description, installmentValue: value, totalValue: value * installments, installments, firstMonth: monthKey(), dueDay, category: data.category, paidBy: data.paidBy, scope: data.scope, splitYou: 50 });
-      saveConfig(false); materializeScheduledItems();
+      saveConfig(); materializeScheduledItems();
     } else {
       const bill = { id: uid(), ...data, paid: false, transactionId: null };
-      if (form.get('recurring')) { const recurrence = { id: uid(), ...data, startMonth: monthKey(), endMonth: null, active: true }; appConfig.recurringBills.push(recurrence); bill.recurrenceId = recurrence.id; bill.generatedMonth = monthKey(); saveConfig(false); }
+      if (form.get('recurring')) { const recurrence = { id: uid(), ...data, startMonth: monthKey(), endMonth: null, active: true }; appConfig.recurringBills.push(recurrence); bill.recurrenceId = recurrence.id; bill.generatedMonth = monthKey(); saveConfig(); }
       monthData.bills.push(bill);
     }
   }
@@ -487,8 +655,8 @@ $('#billList').addEventListener('click', event => {
   const bill = monthData.bills.find(item => item.id === button.dataset.id); if (!bill) return;
   if (button.dataset.billAction === 'edit') openBill(bill);
   if (button.dataset.billAction === 'delete' && confirm(`Excluir “${bill.description}” deste mês?`)) {
-    if (bill.recurrenceId && confirm('Encerrar também a recorrência nos próximos meses?')) { const template = appConfig.recurringBills.find(item => item.id === bill.recurrenceId); if (template) { template.active = false; template.endMonth = addMonths(monthKey(), -1); } saveConfig(false); }
-    if (bill.installmentPlanId && confirm('Excluir também as parcelas dos próximos meses?')) { appConfig.installmentPlans = appConfig.installmentPlans.filter(item => item.id !== bill.installmentPlanId); saveConfig(false); }
+    if (bill.recurrenceId && confirm('Encerrar também a recorrência nos próximos meses?')) { const template = appConfig.recurringBills.find(item => item.id === bill.recurrenceId); if (template) { template.active = false; template.endMonth = addMonths(monthKey(), -1); } saveConfig(); }
+    if (bill.installmentPlanId && confirm('Excluir também as parcelas dos próximos meses?')) { appConfig.installmentPlans = appConfig.installmentPlans.filter(item => item.id !== bill.installmentPlanId); saveConfig(); }
     monthData.bills = monthData.bills.filter(item => item.id !== bill.id); if (bill.transactionId) monthData.transactions = monthData.transactions.filter(item => item.id !== bill.transactionId);
     saveLocal(false); render(); toast('Conta excluída');
   }
@@ -498,7 +666,7 @@ $('#planForm').addEventListener('submit', event => {
   if (event.submitter?.value === 'cancel') return;
   event.preventDefault(); const form = new FormData(event.currentTarget), yourBudget = parseCurrency(form.get('yourBudget')) || 0, partnerBudget = parseCurrency(form.get('partnerBudget')) || 0;
   if (yourBudget < 0 || partnerBudget < 0) { toast('Informe valores válidos para o planejamento'); return; }
-  monthData.openingBalances['Você'] = yourBudget; monthData.openingBalances.Namorada = partnerBudget; monthData.budget = yourBudget + partnerBudget + monthData.openingBalances.Casal; monthData.savingsGoal = parseCurrency(form.get('goal')) || 0;
+  monthData.monthlyIncome['Você'] = yourBudget; monthData.monthlyIncome.Namorada = partnerBudget; monthData.budget = yourBudget + partnerBudget; monthData.savingsGoal = parseCurrency(form.get('goal')) || 0;
   saveLocal(false); render(); event.currentTarget.closest('dialog').close(); toast('Planejamento atualizado');
 });
 
@@ -520,14 +688,14 @@ $('#installmentForm').addEventListener('submit', event => {
   if (!card || !totalValue || installments < 2 || installments > 60 || Number.isNaN(purchaseDate.getTime())) { toast('Confira o cartão, valor, parcelas e data'); return; }
   const purchaseMonth = monthKey(purchaseDate), firstMonth = Number(String(form.get('purchaseDate')).slice(8, 10)) > card.closingDay ? addMonths(purchaseMonth, 1) : purchaseMonth;
   appConfig.installmentPlans.push({ id: uid(), cardId: card.id, cardName: card.name, dueDay: card.dueDay, paidBy: card.owner, description: String(form.get('description')).trim(), category: form.get('category'), totalValue, installments, purchaseDate: form.get('purchaseDate'), firstMonth, scope: form.get('scope'), splitYou: 50 });
-  saveConfig(false); materializeScheduledItems(); saveLocal(false); render(); event.currentTarget.closest('dialog').close(); toast(`${installments} parcelas criadas`);
+  saveConfig(); materializeScheduledItems(); saveLocal(false); render(); event.currentTarget.closest('dialog').close(); toast(`${installments} parcelas criadas`);
 });
 
 $('#closeMonthForm').addEventListener('submit', event => {
   if (event.submitter?.value === 'cancel') return;
   event.preventDefault(); const form = new FormData(event.currentTarget), balances = ownerTotals(), nextKey = addMonths(monthKey(), 1), next = readMonth(nextKey);
   if (hasMonthValues(next) && next.openingFrom !== monthKey() && !confirm(`O mês ${formatMonthLabel(nextKey)} já possui dados. Atualizar seus saldos iniciais?`)) return;
-  next.openingBalances = { ...balances }; next.openingFrom = monthKey(); next.budget = OWNERS.reduce((sum, owner) => sum + balances[owner], 0);
+  next.openingBalances = { ...balances }; next.openingFrom = monthKey(); next.budget = monthlyIncomeTotal(next);
   if (form.get('carryPending')) monthData.bills.filter(bill => !bill.paid).forEach(bill => { const id = `carry-${bill.id}-${nextKey}`; if (!next.bills.some(item => item.id === id)) next.bills.push({ ...bill, id, paid: false, transactionId: null, recurrenceId: null, generatedMonth: null, carriedFrom: monthKey() }); });
   writeMonth(nextKey, next); monthData.savedAmount = Math.max(0, parseCurrency(form.get('savedAmount')) || 0); monthData.status = 'closed'; monthData.closedAt = new Date().toISOString();
   saveLocal(false); render(); event.currentTarget.closest('dialog').close(); toast('Mês fechado e saldo preparado para o próximo');
@@ -546,21 +714,48 @@ $('#settlementForm').addEventListener('submit', event => {
   saveLocal(false); render(); form.closest('dialog').close(); toast('Acerto registrado');
 });
 
-$('#settingsForm').addEventListener('submit', event => {
-  if (event.submitter?.value === 'cancel') return;
-  event.preventDefault(); const form = new FormData(event.currentTarget);
-  localStorage.setItem(GITHUB_SETTINGS_KEY, JSON.stringify({ owner: String(form.get('owner')).trim(), repo: String(form.get('repo')).trim(), branch: String(form.get('branch')).trim() || 'main' }));
-  if (form.get('token')) localStorage.setItem(GITHUB_TOKEN_KEY, String(form.get('token')).trim());
-  event.currentTarget.closest('dialog').close(); toast('Conexão salva neste aparelho'); syncGithub({ silent: true });
+$('#pinForm').addEventListener('submit', async event => {
+  event.preventDefault();
+  const pin = String(new FormData(event.currentTarget).get('pin') || '');
+  const errorElement = $('#pinError'), button = $('#pinSubmit');
+  if (!/^\d{6}$/.test(pin)) { errorElement.textContent = 'Digite os 6 números do PIN.'; errorElement.hidden = false; return; }
+  errorElement.hidden = true; button.disabled = true; button.textContent = 'Entrando...';
+  let authenticatedUser = null;
+  try {
+    const { data, error } = await supabaseClient.auth.signInWithPassword({ email: SUPABASE_CONFIG.authEmail, password: pin });
+    authenticatedUser = data?.session?.user || data?.user || null;
+    if (!authenticatedUser) {
+      const { data: sessionData } = await supabaseClient.auth.getSession();
+      authenticatedUser = sessionData.session?.user || null;
+    }
+    if (!authenticatedUser) throw error || new Error('Acesso não autorizado');
+  } catch (error) {
+    console.error(error);
+    errorElement.textContent = 'PIN incorreto. Confira os 6 números e tente novamente.';
+    errorElement.hidden = false; $('#pinInput').select();
+    button.disabled = false; button.textContent = 'Entrar';
+    return;
+  }
+
+  event.currentTarget.reset();
+  try { await enterApp(authenticatedUser); }
+  catch (error) {
+    console.error(error);
+    if (!monthData) { loadMonth(); renderCards(); syncRoute(); }
+    toast('Sessão iniciada; alguns dados ainda estão carregando');
+  } finally { button.disabled = false; button.textContent = 'Entrar'; }
 });
 
-window.addEventListener('resize', () => requestAnimationFrame(renderBalanceChart));
-window.addEventListener('hashchange', syncRoute);
-window.addEventListener('beforeprint', render);
+window.addEventListener('resize', () => { if (monthData) requestAnimationFrame(renderBalanceChart); });
+window.addEventListener('hashchange', () => { if (monthData) syncRoute(); });
+window.addEventListener('beforeprint', () => { if (monthData) render(); });
 window.addEventListener('afterprint', () => { document.title = exportPdf.previousTitle || 'Nosso Caixa'; });
+window.addEventListener('online', () => { if (currentUser) reconcileSupabase({ silent: true }); });
+window.addEventListener('offline', () => { if (currentUser) setSyncState('Sem conexão — salvo neste aparelho', true); });
+document.addEventListener('visibilitychange', () => { if (!document.hidden && currentUser && navigator.onLine) reconcileSupabase({ silent: true }); });
 
 const categoryOptions = Object.keys(CATEGORIES).filter(category => category !== 'Receita').map(category => `<option>${category}</option>`).join('');
 $('#categorySelect').innerHTML = categoryOptions; $('#billCategorySelect').innerHTML = categoryOptions; $('#installmentCategorySelect').innerHTML = categoryOptions;
 $('#transactionCategoryFilter').innerHTML = `<option value="">Todas</option>${categoryOptions}<option>Receita</option><option>Transferência</option>`;
-loadMonth(); renderCards(); syncRoute();
+initializeSupabase();
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(() => {});
