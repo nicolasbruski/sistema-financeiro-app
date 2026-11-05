@@ -251,7 +251,7 @@ export default function App() {
               <Input type="radio" name="scope" id="individualScope" value="individual" defaultChecked /><label htmlFor="individualScope">Individual</label>
               <Input type="radio" name="scope" id="sharedScope" value="shared" /><label htmlFor="sharedScope">Compartilhada</label>
             </div>
-            <label id="splitLabel" hidden>Parte de Nicolas (%)<Input name="splitYou" type="number" min="0" max="100" value="50" /></label>
+            <label id="splitLabel" hidden>Parte de Nicolas (%)<Input name="splitYou" type="number" min="0" max="100" defaultValue="50" /></label>
           </fieldset>
         </div>
         <Button className="button button-primary full" type="submit">Salvar movimentação</Button>
@@ -292,7 +292,7 @@ export default function App() {
         <div className="dialog-fields">
           <label>Descrição<Input name="description" maxLength="60" placeholder="Ex.: Fatura do cartão" /></label>
           <div className="form-row"><label>Valor da parcela<Input name="value" inputMode="decimal" placeholder="0,00" /></label><label>Vencimento<Input name="dueDay" type="number" min="1" max="31" placeholder="10" /></label></div>
-          <label>Quantidade de parcelas<Input name="installments" type="number" min="1" max="60" value="1" aria-describedby="billInstallmentsHelp" /><small id="billInstallmentsHelp">Use 1 para uma conta sem parcelas. As demais vencem nos meses seguintes.</small></label>
+          <label>Quantidade de parcelas<Input name="installments" type="number" min="1" max="60" defaultValue="1" aria-describedby="billInstallmentsHelp" /><small id="billInstallmentsHelp">Use 1 para uma conta sem parcelas. As demais vencem nos meses seguintes.</small></label>
           <label>Categoria<NativeSelect name="category" id="billCategorySelect"></NativeSelect></label>
           <fieldset className="sharing-fields">
             <legend>Para quem é esta conta?</legend>
@@ -334,7 +334,7 @@ export default function App() {
         <div className="dialog-head"><div><h2>Compra parcelada</h2><p>As parcelas aparecerão nas faturas futuras.</p></div><Button className="icon-button subtle" value="cancel" aria-label="Fechar">×</Button></div>
         <label>Cartão<NativeSelect name="cardId" id="installmentCardSelect"></NativeSelect></label>
         <label>Descrição<Input name="description" maxLength="60" placeholder="Ex.: Notebook" /></label>
-        <div className="form-row"><label>Valor total<Input name="value" inputMode="decimal" placeholder="0,00" /></label><label>Parcelas<Input name="installments" type="number" min="2" max="60" value="2" /></label></div>
+        <div className="form-row"><label>Valor total<Input name="value" inputMode="decimal" placeholder="0,00" /></label><label>Parcelas<Input name="installments" type="number" min="2" max="60" defaultValue="2" /></label></div>
         <div className="form-row"><label>Data da compra<Input name="purchaseDate" type="date" /></label><label>Categoria<NativeSelect name="category" id="installmentCategorySelect"></NativeSelect></label></div>
         <div className="type-toggle">
           <Input type="radio" name="scope" id="installmentIndividual" value="individual" defaultChecked /><label htmlFor="installmentIndividual">Individual</label>

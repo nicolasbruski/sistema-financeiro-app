@@ -1,5 +1,6 @@
 @import "tailwindcss";
 @import "../styles.css";
+@import "./ios-theme.css";
 
 @theme inline {
   --color-background: var(--background);
