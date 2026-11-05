@@ -1,54 +1,50 @@
 # Nosso Caixa
 
-Controle financeiro responsivo e instalável, com dados compartilhados entre computador e celular pelo Supabase e hospedagem estática no Netlify.
+Controle financeiro responsivo e instalável, hospedado na Vercel. Os dados ficam em um arquivo JSON versionado no GitHub e também em uma cópia local no navegador.
 
-## Configurar o Supabase
+## Armazenamento
 
-1. Crie um projeto no Supabase.
-2. Abra **SQL Editor**, cole o conteúdo de `supabase.sql` e execute.
-3. Em **Authentication > Users**, crie um usuário com e-mail e senha. Use `210321` como senha para manter o acesso por PIN.
-4. Em **Project Settings > API**, copie a Project URL e a chave pública (`publishable` ou `anon`). Nunca use a chave `service_role` no navegador.
-5. Preencha `supabase-config.js`:
+O aplicativo usa dois níveis de armazenamento:
 
-```js
-window.NOSSO_CAIXA_CONFIG = {
-  supabaseUrl: 'https://seu-projeto.supabase.co',
-  supabaseAnonKey: 'sua-chave-publica',
-  authEmail: 'o-mesmo-email-do-usuario-criado'
-};
-```
+- **GitHub:** cópia principal online em `data/finances.json`, com histórico de cada alteração em commits.
+- **localStorage:** cópia local para carregamento rápido e uso temporário quando a conexão estiver indisponível.
 
-A chave pública e a URL podem ficar no frontend. As políticas RLS de `supabase.sql` garantem que somente o usuário autenticado leia e altere os próprios dados.
+Ao entrar, o aplicativo combina as versões pelo horário da última alteração. Cada mês é combinado separadamente para evitar que dados antigos de um aparelho substituam meses mais novos.
 
-## Migrar os dados existentes
+## Acesso com GitHub
 
-Abra a nova versão no aparelho que contém os dados atuais e entre com o PIN. No primeiro acesso, os meses e configurações encontrados no `localStorage` são enviados automaticamente ao Supabase. A cópia local é mantida como cache para uso sem conexão.
+O painel usa o fluxo OAuth Web do GitHub, semelhante ao gateway de autenticação usado pelo Decap CMS. O `client_secret` e o token do usuário ficam somente nas Vercel Functions. O navegador recebe um cookie de sessão criptografado, `HttpOnly` e com validade de sete dias.
 
-Faça essa primeira entrada no aparelho com os dados mais completos antes de acessar pelo segundo dispositivo.
+Somente logins presentes em `GITHUB_ALLOWED_USERS` podem abrir o painel. Não é necessário banco de dados ou serviço de sessão: o token fica criptografado com `SESSION_SECRET`.
 
 ## Executar localmente
 
-Sirva a pasta com um servidor HTTP estático:
-
 ```bash
-npx serve .
+npm install
+npm run dev
 ```
 
-O uso por `file://` não ativa o service worker.
+O Vite sozinho não executa as Vercel Functions. Para testar login e armazenamento, instale a Vercel CLI, configure as variáveis de desenvolvimento e execute `vercel dev`. Para desenvolvimento local, use outro OAuth App com callback `http://localhost:3000/api/auth-callback` e `APP_URL=http://localhost:3000`.
 
-## Publicar no Netlify
+## Publicar na Vercel
 
-Crie um site no Netlify e publique esta pasta. O arquivo `netlify.toml` já define a raiz como diretório de publicação e evita cache persistente do service worker e da configuração.
+1. Crie um repositório privado separado, por exemplo `nosso-caixa-dados`, com branch `main`. Separá-lo do código evita um novo deploy a cada lançamento financeiro.
+2. Em **GitHub > Settings > Developer settings > OAuth Apps**, crie um OAuth App.
+3. Na Vercel, clique em **Add New > Project**, importe este repositório e mantenha o preset **Vite**.
+4. Depois do primeiro deploy, copie o domínio de produção, por exemplo `https://nosso-caixa.vercel.app`.
+5. No OAuth App, use esse domínio como Homepage URL e `https://nosso-caixa.vercel.app/api/auth-callback` como Authorization callback URL.
+6. Em **Vercel > Project > Settings > Environment Variables**, configure todas as variáveis de `.env.example`. Em `APP_URL`, informe exatamente o domínio de produção, sem barra no final.
+7. Gere `SESSION_SECRET` com pelo menos 32 caracteres aleatórios e faça um novo deploy. O primeiro salvamento cria `data/finances.json` no repositório de dados.
 
-O site não precisa de funções de servidor: o navegador conversa diretamente com o Supabase usando a sessão autenticada e as políticas RLS.
+As rotas em `api/` são publicadas automaticamente como Vercel Functions. O arquivo `vercel.json` mantém o service worker sem cache durante atualizações.
+
+O usuário autorizado precisa ter permissão de escrita no repositório configurado. Para repositórios privados, este MVP solicita o escopo OAuth `repo`.
 
 ## Estrutura dos dados
 
-- `monthly_data`: um documento JSON por usuário e mês.
-- `app_config`: cartões, recorrências, parcelamentos e preferências.
-- `localStorage`: cache offline e origem da importação inicial.
-
-As alterações são salvas automaticamente. Quando dois aparelhos estão abertos, o Supabase Realtime distribui a versão mais recente.
+- `data/finances.json` no GitHub: configurações e todos os meses em um único JSON pequeno.
+- `nosso-caixa:config`: cópia local das configurações.
+- `nosso-caixa:AAAA-MM`: cópia local dos dados de cada mês.
 
 ## Regras financeiras
 
@@ -56,4 +52,3 @@ As alterações são salvas automaticamente. Quando dois aparelhos estão aberto
 - Entradas avulsas somam à renda fixa; saídas pagas reduzem o saldo; contas pendentes afetam apenas a projeção.
 - O saldo trazido do mês anterior compõe o saldo atual, mas não é contado novamente como renda.
 - Transferências entre Nicolas, Isabella e o saldo compartilhado apenas redistribuem o dinheiro e não alteram entradas, saídas ou saldo total.
-- O histórico usa as mesmas regras do painel: renda fixa mais entradas avulsas, sem duplicar o saldo inicial.

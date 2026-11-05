@@ -40,7 +40,7 @@ const context = {
   },
   sessionStorage: { removeItem() {} },
   navigator: { onLine: false },
-  window: { NOSSO_CAIXA_CONFIG: {}, addEventListener() {} },
+  window: { __NOSSO_CAIXA_TEST__: true, addEventListener() {} },
   URL,
   URLSearchParams,
   Intl,
@@ -59,6 +59,20 @@ const context = {
 
 vm.createContext(context);
 vm.runInContext(fs.readFileSync('app.js', 'utf8'), context);
+
+const savingsConfig = context.loadConfigFrom({
+  version: 1,
+  savedFunds: { bank: 125050, cash: 2490 }
+});
+
+assert.equal(savingsConfig.version, 2);
+assert.deepEqual({ ...savingsConfig.savedFunds }, { bank: 125050, cash: 2490 });
+
+const repairedSavingsConfig = context.loadConfigFrom({
+  savedFunds: { bank: -100, cash: 'valor inválido' }
+});
+
+assert.deepEqual({ ...repairedSavingsConfig.savedFunds }, { bank: 0, cash: 0 });
 
 const migrated = context.normalizeMonth({
   version: 4,
@@ -163,13 +177,5 @@ const monthWithGasoline = context.normalizeMonth({
 }, '2026-12');
 
 assert.equal(context.gasolineExpenseTotal(monthWithGasoline), 35_000);
-
-storage.set('nosso-caixa:2026-09', JSON.stringify(migrated));
-storage.set('nosso-caixa:2026-10', JSON.stringify(month));
-getElement('#historyRange').value = '6';
-context.renderHistory();
-assert.match(getElement('#historyTableBody').innerHTML, /R\$\s10\.000,00/);
-assert.match(getElement('#historyTableBody').innerHTML, /R\$\s10\.500,00/);
-assert.match(getElement('#historyTableBody').innerHTML, /R\$\s9\.500,00/);
 
 console.log('income rules: ok');

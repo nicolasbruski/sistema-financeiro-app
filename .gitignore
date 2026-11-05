@@ -1,4 +1,12 @@
 netlify-deploy/
+node_modules/
+dist/
 
 # Local Netlify folder
 .netlify
+
+# Vercel and local secrets
+.vercel
+.env
+.env.*
+!.env.example

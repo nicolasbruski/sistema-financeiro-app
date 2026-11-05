@@ -13,15 +13,16 @@ const OWNERS = ['Você', 'Namorada', 'Casal'];
 const OWNER_LABELS = { 'Você': 'Nicolas', Namorada: 'Isabella', Casal: 'Compartilhado' };
 const CONFIG_KEY = 'nosso-caixa:config';
 const MONTH_PREFIX = 'nosso-caixa:';
-const SUPABASE_CONFIG = window.NOSSO_CAIXA_CONFIG || {};
+const CLOUD_ENDPOINT = '/api/data';
+const AUTH_SESSION_ENDPOINT = '/api/auth-session';
+const AUTH_LOGOUT_ENDPOINT = '/api/auth-logout';
 const today = new Date();
 let cursor = new Date(today.getFullYear(), today.getMonth(), 1);
 let monthData = null;
 let appConfig = loadConfig();
-let supabaseClient = null;
-let currentUser = null;
-let realtimeChannel = null;
-const remoteSyncTimers = new Map();
+let cloudSyncTimer = null;
+let applyingCloudData = false;
+let appReady = false;
 
 const $ = selector => document.querySelector(selector);
 const money = (cents, digits = 2) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: digits, maximumFractionDigits: digits }).format((Number(cents) || 0) / 100);
@@ -36,20 +37,25 @@ function emptyMonth(key = monthKey()) {
     openingBalances: { 'Você': 0, Namorada: 0, Casal: 0 }, monthlyIncome: { 'Você': 0, Namorada: 0 },
     status: 'open', closedAt: null, bills: [], transactions: [] };
 }
-function defaultConfig() { return { version: 1, updatedAt: null, recurringBills: [], cards: [], installmentPlans: [], splitYou: 50 }; }
+function defaultConfig() { return { version: 2, updatedAt: null, recurringBills: [], cards: [], installmentPlans: [], splitYou: 50, savedFunds: { bank: 0, cash: 0 } }; }
 function safeJson(raw, fallback) { try { return raw ? JSON.parse(raw) : fallback; } catch (_) { return fallback; } }
 function loadConfigFrom(value) {
   const result = { ...defaultConfig(), ...(value || {}) };
   result.recurringBills = Array.isArray(result.recurringBills) ? result.recurringBills : [];
   result.cards = Array.isArray(result.cards) ? result.cards : [];
   result.installmentPlans = Array.isArray(result.installmentPlans) ? result.installmentPlans : [];
+  result.savedFunds = {
+    bank: Math.max(0, Number(result.savedFunds?.bank) || 0),
+    cash: Math.max(0, Number(result.savedFunds?.cash) || 0)
+  };
+  result.version = 2;
   return result;
 }
 function loadConfig() { return loadConfigFrom(safeJson(localStorage.getItem(CONFIG_KEY), {})); }
 function saveConfig(schedule = true) {
   appConfig.updatedAt = new Date().toISOString();
   localStorage.setItem(CONFIG_KEY, JSON.stringify(appConfig));
-  if (schedule) scheduleConfigSync();
+  if (schedule && $('#syncText')) scheduleCloudSync();
 }
 
 function normalizeMonth(data, key = monthKey()) {
@@ -97,7 +103,7 @@ function readMonth(key) { return normalizeMonth(safeJson(localStorage.getItem(st
 function writeMonth(key, data, schedule = true) {
   data.updatedAt = new Date().toISOString();
   localStorage.setItem(storageKey(key), JSON.stringify(normalizeMonth(data, key)));
-  if (schedule) scheduleMonthSync(key);
+  if (schedule && $('#syncText')) scheduleCloudSync();
 }
 function hasMonthValues(data) { return Boolean(OWNERS.some(owner => data.openingBalances?.[owner]) || Object.values(data.monthlyIncome || {}).some(Boolean) || data.savingsGoal || data.savedAmount || data.transactions?.length || data.bills?.length || data.status === 'closed'); }
 
@@ -143,10 +149,9 @@ function loadMonth() {
   const generated = materializeScheduledItems();
   if (generated || (raw && JSON.stringify(safeJson(raw, {})) !== JSON.stringify(monthData))) writeMonth(key, monthData);
   render();
-  if (hasMonthValues(monthData)) scheduleMonthSync(key, 150);
 }
 function saveLocal(feedback = true) {
-  writeMonth(monthKey(), monthData); setSyncState('Salvando no Supabase...');
+  writeMonth(monthKey(), monthData);
   if (feedback) toast('Alteração salva');
 }
 
@@ -195,14 +200,13 @@ function render() {
   const summary = totals(), balances = ownerTotals(), pending = pendingBillsTotal(), committed = summary.expense + pending, projected = summary.balance - pending;
   const name = new Intl.DateTimeFormat('pt-BR', { month: 'long' }).format(cursor);
   $('#monthName').textContent = name.charAt(0).toUpperCase() + name.slice(1); $('#yearName').textContent = cursor.getFullYear();
-  $('#balanceValue').textContent = money(summary.balance); $('#incomeValue').textContent = money(summary.income); $('#expenseValue').textContent = money(summary.expense); $('#gasolineValue').textContent = money(gasolineExpenseTotal()); if ($('#pendingValue')) $('#pendingValue').textContent = money(pending);
+  $('#balanceValue').textContent = money(summary.balance); $('#incomeValue').textContent = money(summary.income); $('#incomeSpotlightValue').textContent = money(summary.income); $('#expenseValue').textContent = money(summary.expense); $('#gasolineValue').textContent = money(gasolineExpenseTotal()); if ($('#pendingValue')) $('#pendingValue').textContent = money(pending);
   $('#projectedValue').textContent = money(projected); $('#projectedValue').classList.toggle('negative', projected < 0);
   $('#balanceDelta').textContent = monthData.budget ? (committed <= monthData.budget ? `${money(monthData.budget - committed)} livres no plano` : `${money(committed - monthData.budget)} acima do plano`) : 'Defina um limite no planejamento';
   $('#yourBalance').textContent = money(balances['Você']); $('#partnerBalance').textContent = money(balances.Namorada); $('#sharedBalance').textContent = money(balances.Casal);
   [['#yourBalance', balances['Você']], ['#partnerBalance', balances.Namorada], ['#sharedBalance', balances.Casal]].forEach(([selector, value]) => $(selector).classList.toggle('is-negative', value < 0));
-  renderFreshness(); renderWeeks(summary.expense, committed); renderCategories(summary.expense); renderPlan(committed);
-  renderTransactions(); renderBills(); renderAlerts(projected); renderSettlement(); renderBalanceChart(); updateClosedState();
-  if (location.hash === '#historico') renderHistory();
+  renderFreshness(); renderWeeks(summary.expense, committed); renderCategories(summary.expense); renderPlan(committed); renderSavedFunds();
+  renderTransactions(); renderRecentTransactions(); renderBills(); renderBalanceChart(); updateClosedState();
 }
 function renderFreshness() {
   if (monthData.status === 'closed') { $('#syncText').textContent = 'Mês fechado'; $('#syncDot').classList.remove('is-stale'); return; }
@@ -235,6 +239,15 @@ function getFilteredTransactions() {
   items.sort((a, b) => sort === 'date-asc' ? (a.date || '').localeCompare(b.date || '') : sort === 'value-desc' ? b.value - a.value : sort === 'description' ? (a.description || '').localeCompare(b.description || '', 'pt-BR') : (b.date || '').localeCompare(a.date || ''));
   return items;
 }
+function renderRecentTransactions() {
+  const items = [...monthData.transactions].sort((a, b) => (b.date || '').localeCompare(a.date || '')).slice(0, 4);
+  $('#recentTransactionList').innerHTML = items.length ? items.map(item => {
+    const date = item.date ? new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: 'short' }).format(new Date(`${item.date}T12:00:00`)).replace('.', '') : '—';
+    const transfer = item.type === 'transfer', owner = transfer ? `${ownerLabel(item.from)} → ${ownerLabel(item.to)}` : ownerLabel(item.paidBy);
+    const sign = item.type === 'income' ? '+' : item.type === 'expense' ? '−' : '';
+    return `<article class="recent-transaction"><span class="transaction-icon ${item.type}" aria-hidden="true">${CASH_FLOW_ICONS[item.type] || CASH_FLOW_ICONS.expense}</span><div class="transaction-main"><strong>${escapeHtml(item.description || 'Movimentação')}</strong><span>${escapeHtml(item.category || 'Transferência')} · ${escapeHtml(owner)}</span></div><div class="recent-transaction-value"><strong class="transaction-value ${item.type}">${sign} ${money(item.value)}</strong><span>${date}</span></div></article>`;
+  }).join('') : '<div class="empty-state recent-empty"><strong>Nenhuma movimentação ainda.</strong><br>Adicione uma entrada ou um gasto para começar.</div>';
+}
 function renderTransactions() {
   const items = getFilteredTransactions(), filteredTotal = items.filter(item => item.type === 'expense').reduce((sum, item) => sum + item.value, 0);
   $('#transactionCount').textContent = `${items.length} ${items.length === 1 ? 'lançamento' : 'lançamentos'} · ${money(filteredTotal)} em saídas`;
@@ -250,6 +263,13 @@ function renderPlan(committed) {
   $('#planGauge').style.setProperty('--progress', `${Math.min(100, percent)}%`); $('#planPercent').textContent = `${percent}%`;
   $('#remainingBudget').textContent = money(monthData.budget - committed);
   $('#goalValue').textContent = monthData.status === 'closed' ? `${money(monthData.savedAmount)} de ${money(monthData.savingsGoal)}` : money(monthData.savingsGoal);
+}
+function renderSavedFunds() {
+  const bank = Number(appConfig.savedFunds?.bank) || 0;
+  const cash = Number(appConfig.savedFunds?.cash) || 0;
+  $('#savedFundsTotal').textContent = money(bank + cash);
+  $('#savedFundsBank').textContent = money(bank);
+  $('#savedFundsCash').textContent = money(cash);
 }
 function renderBills() {
   const sorted = [...monthData.bills].sort((a, b) => Number(a.paid) - Number(b.paid) || a.dueDay - b.dueDay), pending = sorted.filter(bill => !bill.paid);
@@ -287,28 +307,15 @@ function renderBalanceChart() {
   if (values.length === 1) values.push(values[0]);
   const min = Math.min(...values), max = Math.max(...values), spread = Math.max(1, max - min);
   const points = values.map((value, index) => ({ x: index / (values.length - 1) * rect.width, y: rect.height - 12 - ((value - min) / spread) * (rect.height - 28) }));
-  const gradient = ctx.createLinearGradient(0, 0, 0, rect.height); gradient.addColorStop(0, 'rgba(85,214,181,.30)'); gradient.addColorStop(1, 'rgba(85,214,181,0)');
+  const gradient = ctx.createLinearGradient(0, 0, 0, rect.height); gradient.addColorStop(0, 'rgba(49,94,168,.28)'); gradient.addColorStop(1, 'rgba(49,94,168,0)');
   ctx.beginPath(); ctx.moveTo(points[0].x, rect.height); points.forEach(point => ctx.lineTo(point.x, point.y)); ctx.lineTo(points.at(-1).x, rect.height); ctx.closePath(); ctx.fillStyle = gradient; ctx.fill();
-  ctx.beginPath(); points.forEach((point, index) => index ? ctx.lineTo(point.x, point.y) : ctx.moveTo(point.x, point.y)); ctx.strokeStyle = '#55d6b5'; ctx.lineWidth = 2.5; ctx.lineJoin = 'round'; ctx.stroke();
+  ctx.beginPath(); points.forEach((point, index) => index ? ctx.lineTo(point.x, point.y) : ctx.moveTo(point.x, point.y)); ctx.strokeStyle = '#315ea8'; ctx.lineWidth = 2.5; ctx.lineJoin = 'round'; ctx.lineCap = 'round'; ctx.stroke();
 }
 function updateClosedState() {
   const closed = monthData.status === 'closed'; $('#closeMonthButton').textContent = closed ? 'Reabrir mês' : 'Fechar mês';
   ['#openTransaction', '#openBill', '#openInstallment', '#mobileAdd', '#editPlan', '#quickExpense', '#quickIncome', '#quickBill', '#quickPlan'].forEach(selector => { if ($(selector)) $(selector).disabled = closed; }); document.body.classList.toggle('month-closed', closed);
 }
-function formatMonthShort(key) { return new Intl.DateTimeFormat('pt-BR', { month: 'short' }).format(parseMonthKey(key)).replace('.', ''); }
 function formatMonthLabel(key) { return new Intl.DateTimeFormat('pt-BR', { month: 'long', year: 'numeric' }).format(parseMonthKey(key)); }
-function renderHistory() {
-  const limit = Number($('#historyRange').value) || 6, rows = [];
-  for (let index = 0; index < localStorage.length; index++) { const key = localStorage.key(index), match = key?.match(/^nosso-caixa:(\d{4}-\d{2})$/); if (!match) continue; const data = readMonth(match[1]); if (!hasMonthValues(data)) continue; rows.push({ key: match[1], data, ...totals(data) }); }
-  rows.sort((a, b) => b.key.localeCompare(a.key)); const visible = rows.slice(0, limit).reverse();
-  const totalExpense = visible.reduce((sum, row) => sum + row.expense, 0), totalSaved = visible.reduce((sum, row) => sum + row.data.savedAmount, 0), average = visible.length ? Math.round(totalExpense / visible.length) : 0, categories = {};
-  visible.forEach(row => row.data.transactions.filter(item => item.type === 'expense').forEach(item => categories[item.category] = (categories[item.category] || 0) + item.value));
-  const topCategory = Object.entries(categories).sort((a, b) => b[1] - a[1])[0];
-  $('#historySummary').innerHTML = `<div><span>Média de despesas</span><strong>${money(average)}</strong></div><div><span>Total reservado</span><strong>${money(totalSaved)}</strong></div><div><span>Maior categoria</span><strong>${topCategory ? escapeHtml(topCategory[0]) : '—'}</strong></div>`;
-  const max = Math.max(...visible.map(row => Math.max(row.income, row.expense)), 1);
-  $('#historyBars').innerHTML = visible.length ? visible.map(row => `<div class="history-month"><span>${formatMonthShort(row.key)}</span><div class="history-bar-pair"><i class="income" style="height:${Math.max(3, row.income / max * 100)}%" title="Entradas: ${money(row.income)}"></i><i class="expense" style="height:${Math.max(3, row.expense / max * 100)}%" title="Saídas: ${money(row.expense)}"></i></div></div>`).join('') : '<div class="empty-state">Os meses salvos aparecerão aqui.</div>';
-  $('#historyTableBody').innerHTML = [...visible].reverse().map(row => `<tr><td>${formatMonthLabel(row.key)}</td><td>${money(row.income)}</td><td>${money(row.expense)}</td><td>${money(row.data.savedAmount)}</td><td>${money(row.balance)}</td></tr>`).join('');
-}
 
 function parseCurrency(value) { const normalized = String(value || '').replace(/\s/g, '').replace(/\./g, '').replace(',', '.').replace(/[^0-9.-]/g, ''); return Math.round(Number(normalized) * 100); }
 function escapeHtml(value) { const div = document.createElement('div'); div.textContent = String(value ?? ''); return div.innerHTML; }
@@ -386,14 +393,6 @@ function setSyncState(message, stale = false) {
   $('#syncDot').classList.toggle('is-stale', stale);
 }
 
-function configuredForSupabase() {
-  let validUrl = false;
-  try { validUrl = new URL(SUPABASE_CONFIG.supabaseUrl).protocol === 'https:'; } catch (_) {}
-  return validUrl && Boolean(SUPABASE_CONFIG.supabaseAnonKey)
-    && !String(SUPABASE_CONFIG.supabaseAnonKey).includes('SUA_CHAVE')
-    && /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(SUPABASE_CONFIG.authEmail || '');
-}
-
 function localMonthKeys() {
   const keys = [];
   for (let index = 0; index < localStorage.length; index++) {
@@ -403,166 +402,116 @@ function localMonthKeys() {
   return [...new Set(keys)].sort();
 }
 
-function newerThan(first, second) {
-  return new Date(first || 0).getTime() > new Date(second || 0).getTime();
+function collectCloudData() {
+  return {
+    version: 1,
+    updatedAt: new Date().toISOString(),
+    config: loadConfig(),
+    months: Object.fromEntries(localMonthKeys().map(key => [key, readMonth(key)]))
+  };
 }
 
-async function saveMonthRemote(key) {
-  if (!supabaseClient || !currentUser || !navigator.onLine) { setSyncState('Sem conexão — salvo neste aparelho', true); return; }
-  const data = readMonth(key);
-  if (!hasMonthValues(data)) return;
-  const { error } = await supabaseClient.from('monthly_data').upsert({ user_id: currentUser.id, month: key, data, updated_at: data.updatedAt || new Date().toISOString() });
-  if (error) throw error;
-  setSyncState('Salvo no Supabase');
+function cloudValueIsNewer(first, second) {
+  return new Date(first?.updatedAt || 0).getTime() > new Date(second?.updatedAt || 0).getTime();
 }
 
-async function saveConfigRemote() {
-  if (!supabaseClient || !currentUser || !navigator.onLine) { setSyncState('Sem conexão — salvo neste aparelho', true); return; }
-  const { error } = await supabaseClient.from('app_config').upsert({ user_id: currentUser.id, data: appConfig, updated_at: appConfig.updatedAt || new Date().toISOString() });
-  if (error) throw error;
-  setSyncState('Salvo no Supabase');
-}
-
-function scheduleRemoteSync(name, action, delay = 700) {
-  if (!currentUser) return;
-  clearTimeout(remoteSyncTimers.get(name));
-  setSyncState(navigator.onLine ? 'Salvando no Supabase...' : 'Sem conexão — salvo neste aparelho', !navigator.onLine);
-  remoteSyncTimers.set(name, setTimeout(async () => {
-    remoteSyncTimers.delete(name);
-    try { await action(); }
-    catch (error) { setSyncState('Não foi possível sincronizar', true); console.error(error); }
-  }, delay));
-}
-
-function scheduleMonthSync(key, delay = 700) { scheduleRemoteSync(`month:${key}`, () => saveMonthRemote(key), delay); }
-function scheduleConfigSync(delay = 700) { scheduleRemoteSync('config', saveConfigRemote, delay); }
-
-async function reconcileSupabase({ silent = false } = {}) {
-  if (!supabaseClient || !currentUser) return;
-  setSyncState('Sincronizando...');
-  try {
-    const [monthsResult, configResult] = await Promise.all([
-      supabaseClient.from('monthly_data').select('month,data,updated_at').eq('user_id', currentUser.id),
-      supabaseClient.from('app_config').select('data,updated_at').eq('user_id', currentUser.id).maybeSingle()
-    ]);
-    if (monthsResult.error) throw monthsResult.error;
-    if (configResult.error) throw configResult.error;
-
-    const remoteMonths = new Map((monthsResult.data || []).map(row => [row.month, row]));
-    const allMonths = new Set([...localMonthKeys(), ...remoteMonths.keys()]);
-    const uploads = [];
-    allMonths.forEach(key => {
-      const localRaw = safeJson(localStorage.getItem(storageKey(key)), null), remote = remoteMonths.get(key);
-      if (remote && (!localRaw || newerThan(remote.updated_at, localRaw.updatedAt))) {
-        const data = normalizeMonth({ ...remote.data, updatedAt: remote.data?.updatedAt || remote.updated_at }, key);
-        localStorage.setItem(storageKey(key), JSON.stringify(data));
-      } else if (localRaw) {
-        const data = normalizeMonth(localRaw, key);
-        if (hasMonthValues(data) && (!remote || newerThan(data.updatedAt, remote.updated_at))) uploads.push({ user_id: currentUser.id, month: key, data, updated_at: data.updatedAt || new Date().toISOString() });
+function applyCloudData(data) {
+  if (!data || typeof data !== 'object') return;
+  applyingCloudData = true;
+  const localConfig = safeJson(localStorage.getItem(CONFIG_KEY), null);
+  if (data.config && typeof data.config === 'object' && (!localConfig || cloudValueIsNewer(data.config, localConfig))) {
+    appConfig = loadConfigFrom(data.config);
+    localStorage.setItem(CONFIG_KEY, JSON.stringify(appConfig));
+  }
+  if (data.months && typeof data.months === 'object') {
+    Object.entries(data.months).forEach(([key, value]) => {
+      const localValue = safeJson(localStorage.getItem(storageKey(key)), null);
+      if (/^\d{4}-\d{2}$/.test(key) && value && typeof value === 'object'
+        && (!localValue || cloudValueIsNewer(value, localValue))) {
+        localStorage.setItem(storageKey(key), JSON.stringify(normalizeMonth(value, key)));
       }
     });
-    if (uploads.length) {
-      const { error } = await supabaseClient.from('monthly_data').upsert(uploads);
-      if (error) throw error;
-    }
+  }
+  applyingCloudData = false;
+}
 
-    const remoteConfig = configResult.data;
-    if (remoteConfig && newerThan(remoteConfig.updated_at, appConfig.updatedAt)) {
-      appConfig = loadConfigFrom({ ...remoteConfig.data, updatedAt: remoteConfig.data?.updatedAt || remoteConfig.updated_at });
-      localStorage.setItem(CONFIG_KEY, JSON.stringify(appConfig));
-    } else if (!remoteConfig || newerThan(appConfig.updatedAt, remoteConfig.updated_at)) {
-      if (!appConfig.updatedAt) appConfig.updatedAt = new Date().toISOString();
-      await saveConfigRemote();
-    }
+async function requestCloud(method, data) {
+  const response = await fetch(CLOUD_ENDPOINT, {
+    method,
+    headers: { 'Content-Type': 'application/json' },
+    body: data ? JSON.stringify(data) : undefined
+  });
+  const result = await response.json().catch(() => ({}));
+  if (response.status === 401) showAuthGate('Sua sessão expirou. Entre novamente para continuar.');
+  if (!response.ok) throw new Error(result.error || 'Não foi possível acessar o armazenamento online.');
+  return result.data || null;
+}
 
-    loadMonth(); renderCards(); syncRoute(); setSyncState('Salvo no Supabase');
-    if (!silent) toast('Dados sincronizados');
+async function syncCloudData({ initial = false } = {}) {
+  if (!appReady || applyingCloudData) return;
+  setSyncState(initial ? 'Carregando dados online...' : 'Salvando online...');
+  try {
+    if (initial) applyCloudData(await requestCloud('GET'));
+    applyCloudData(await requestCloud('POST', collectCloudData()));
+    if (monthData) { monthData = readMonth(monthKey()); render(); renderCards(); }
+    setSyncState('Salvo online e neste aparelho');
   } catch (error) {
-    setSyncState(navigator.onLine ? 'Erro ao conectar ao Supabase' : 'Sem conexão — usando dados deste aparelho', true);
-    if (!monthData) { loadMonth(); renderCards(); syncRoute(); }
-    if (!silent) toast(error.message || 'Não foi possível sincronizar');
     console.error(error);
+    setSyncState('Salvo neste aparelho — online indisponível', true);
+    if (initial) throw error;
   }
 }
 
-function subscribeToChanges() {
-  if (!supabaseClient || !currentUser) return;
-  if (realtimeChannel) supabaseClient.removeChannel(realtimeChannel);
-  realtimeChannel = supabaseClient.channel(`finance-${currentUser.id}`)
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'monthly_data', filter: `user_id=eq.${currentUser.id}` }, payload => {
-      const row = payload.new;
-      if (!row?.month || !row.data) return;
-      const local = safeJson(localStorage.getItem(storageKey(row.month)), {});
-      if (!newerThan(row.updated_at, local.updatedAt)) return;
-      localStorage.setItem(storageKey(row.month), JSON.stringify(normalizeMonth({ ...row.data, updatedAt: row.data.updatedAt || row.updated_at }, row.month)));
-      if (row.month === monthKey()) { monthData = readMonth(row.month); render(); }
-      setSyncState('Atualizado pelo Supabase');
-    })
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'app_config', filter: `user_id=eq.${currentUser.id}` }, payload => {
-      const row = payload.new;
-      if (!row?.data || !newerThan(row.updated_at, appConfig.updatedAt)) return;
-      appConfig = loadConfigFrom({ ...row.data, updatedAt: row.data.updatedAt || row.updated_at });
-      localStorage.setItem(CONFIG_KEY, JSON.stringify(appConfig));
-      renderCards();
-      setSyncState('Atualizado pelo Supabase');
-    })
-    .subscribe();
+function scheduleCloudSync(delay = 800) {
+  if (applyingCloudData || !appReady) return;
+  clearTimeout(cloudSyncTimer);
+  setSyncState('Salvando online...');
+  cloudSyncTimer = setTimeout(() => syncCloudData(), delay);
 }
 
-async function enterApp(user) {
-  currentUser = user;
-  localStorage.removeItem('nosso-caixa:github');
-  localStorage.removeItem('nosso-caixa:github-token');
-  sessionStorage.removeItem('nosso-caixa:token');
-  document.body.classList.remove('auth-pending');
-  document.body.classList.add('is-authenticated');
+function showAuthGate(message = '') {
+  const gate = $('#authGate');
+  if (!gate) return;
+  if (message) $('#authMessage').textContent = message;
+  gate.hidden = false;
+}
+
+async function loadAuthenticatedUser() {
+  const response = await fetch(AUTH_SESSION_ENDPOINT, { headers: { Accept: 'application/json' } });
+  const result = await response.json().catch(() => ({}));
+  if (!response.ok || !result.authenticated) return null;
+  return result.user;
+}
+
+async function initializeApp() {
+  const user = await loadAuthenticatedUser().catch(() => null);
+  if (!user) {
+    const denied = new URLSearchParams(location.search).get('auth') === 'denied';
+    showAuthGate(denied ? 'O login foi cancelado. Entre com uma conta autorizada para continuar.' : 'Os dados ficam em um arquivo JSON privado no seu repositório.');
+    return;
+  }
   $('#authGate').hidden = true;
-  await reconcileSupabase({ silent: true });
-  subscribeToChanges();
-}
-
-function showAuthMessage(message, error = false) {
-  $('#authDescription').textContent = message;
-  $('#pinForm').hidden = error;
-  $('#pinError').hidden = true;
-}
-
-async function initializeSupabase() {
-  if (!configuredForSupabase()) {
-    showAuthMessage('Preencha a URL, a chave pública e o e-mail em supabase-config.js para concluir a configuração.', true);
-    return;
-  }
-  if (!window.supabase?.createClient) {
-    showAuthMessage('Não foi possível carregar a conexão com o Supabase. Verifique a internet e recarregue a página.', true);
-    return;
-  }
-  supabaseClient = window.supabase.createClient(SUPABASE_CONFIG.supabaseUrl, SUPABASE_CONFIG.supabaseAnonKey, { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false } });
-  const { data, error } = await supabaseClient.auth.getSession();
-  if (error) { showAuthMessage('Não foi possível recuperar a sessão. Digite o PIN novamente.'); return; }
-  if (data.session?.user) await enterApp(data.session.user);
-  else { document.body.classList.remove('auth-pending'); $('#pinInput').focus(); }
-}
-
-async function signOut() {
-  remoteSyncTimers.forEach(timer => clearTimeout(timer)); remoteSyncTimers.clear();
-  if (realtimeChannel) await supabaseClient.removeChannel(realtimeChannel);
-  await supabaseClient?.auth.signOut();
-  currentUser = null; realtimeChannel = null;
-  document.body.classList.remove('is-authenticated');
-  $('#authGate').hidden = false; $('#pinForm').hidden = false; $('#pinForm').reset();
-  $('#authDescription').textContent = 'Digite o PIN para acessar os dados do casal.';
-  $('#pinInput').focus();
+  $('#githubUser').textContent = user.name || user.login;
+  $('#githubUser').hidden = false;
+  $('#logoutButton').hidden = false;
+  appReady = true;
+  try { await syncCloudData({ initial: true }); }
+  catch (_) { toast('Armazenamento online indisponível; usando os dados deste aparelho'); }
+  loadMonth();
+  renderCards();
+  syncRoute();
 }
 function exportPdf() { exportPdf.previousTitle = document.title; document.title = `Nosso Caixa — ${$('#monthName').textContent} ${cursor.getFullYear()}`; toast('Escolha “Salvar como PDF” na janela de impressão'); setTimeout(() => window.print(), 250); }
 function setMonth(delta) { cursor = new Date(cursor.getFullYear(), cursor.getMonth() + delta, 1); loadMonth(); }
 function syncRoute() {
-  const requested = location.hash.slice(1) || 'inicio', route = requested === 'movimentacoes' ? 'gastos' : requested, records = route === 'contas' || route === 'gastos', history = route === 'historico';
-  $('[data-page="dashboard"]').hidden = records || history; $('[data-page="records"]').hidden = !records; $('[data-page="history"]').hidden = !history;
-  $('#billsPanel').hidden = route !== 'contas'; $('#expensesPanel').hidden = route !== 'gastos'; $('#billsTab').setAttribute('aria-selected', String(route !== 'gastos')); $('#expensesTab').setAttribute('aria-selected', String(route === 'gastos'));
-  const activeView = records ? 'lancamentos' : history ? 'historico' : route === 'planejamento' ? 'planejamento' : 'inicio';
-  document.querySelectorAll('[data-view]').forEach(link => { const active = link.dataset.view === activeView; link.classList.toggle('is-active', active); active ? link.setAttribute('aria-current', 'page') : link.removeAttribute('aria-current'); });
-  document.body.classList.toggle('records-mode', records || history); document.title = records ? 'Contas e gastos — Nosso Caixa' : history ? 'Histórico — Nosso Caixa' : 'Nosso Caixa';
-  if (history) renderHistory(); else if (route === 'planejamento') requestAnimationFrame(() => $('#planejamento').scrollIntoView({ block: 'start' })); else if (!records) requestAnimationFrame(renderBalanceChart);
+  const requested = location.hash.slice(1) || 'inicio', normalized = requested === 'movimentacoes' ? 'gastos' : requested;
+  const route = ['inicio', 'gastos', 'contas', 'planejamento'].includes(normalized) ? normalized : 'inicio', records = route === 'contas' || route === 'gastos';
+  $('[data-page="dashboard"]').hidden = records; $('[data-page="records"]').hidden = !records;
+  $('#billsPanel').hidden = route !== 'contas'; $('#expensesPanel').hidden = route !== 'gastos';
+  const activeView = records ? route : route === 'planejamento' ? 'planejamento' : 'inicio';
+  document.querySelectorAll('[data-view]').forEach(link => { const active = link.dataset.view === activeView || (link.dataset.view === 'lancamentos' && records); link.classList.toggle('is-active', active); active ? link.setAttribute('aria-current', 'page') : link.removeAttribute('aria-current'); });
+  document.body.classList.toggle('records-mode', records); document.title = records ? 'Contas e gastos — Nosso Caixa' : 'Nosso Caixa';
+  if (route === 'planejamento') requestAnimationFrame(() => $('#planejamento').scrollIntoView({ block: 'start' })); else if (!records) requestAnimationFrame(renderBalanceChart);
 }
 
 $('#openTransaction').addEventListener('click', () => openTransaction());
@@ -572,18 +521,21 @@ $('#quickIncome')?.addEventListener('click', () => { openTransaction(); $('#inco
 $('#quickBill')?.addEventListener('click', () => openBill());
 $('#quickPlan')?.addEventListener('click', () => $('#editPlan').click());
 $('#mobileAdd').addEventListener('click', () => { location.hash = 'gastos'; openTransaction(); });
-$('#settingsButton').addEventListener('click', signOut);
-$('#logoutButton').addEventListener('click', signOut);
 $('#previousMonth').addEventListener('click', () => setMonth(-1));
 $('#nextMonth').addEventListener('click', () => setMonth(1));
 $('#monthPicker').addEventListener('click', () => toast('Use as setas para navegar entre os meses'));
 $('#closeMonthButton').addEventListener('click', openCloseMonth);
-$('#historyRange').addEventListener('change', renderHistory);
 ['#transactionSearch', '#transactionTypeFilter', '#transactionOwnerFilter', '#transactionCategoryFilter', '#transactionSort', '#transactionDateFrom', '#transactionDateTo'].forEach(selector => $(selector).addEventListener('input', renderTransactions));
 
 $('#editPlan').addEventListener('click', () => {
   if (!ensureOpenMonth()) return;
   const form = $('#planForm'); setFormCurrency(form.yourBudget, monthData.monthlyIncome['Você']); setFormCurrency(form.partnerBudget, monthData.monthlyIncome.Namorada); setFormCurrency(form.goal, monthData.savingsGoal); openDialog('#planDialog');
+});
+$('#editSavedFunds').addEventListener('click', () => {
+  const form = $('#savedFundsForm');
+  setFormCurrency(form.elements.bank, appConfig.savedFunds.bank);
+  setFormCurrency(form.elements.cash, appConfig.savedFunds.cash);
+  openDialog('#savedFundsDialog');
 });
 document.querySelectorAll('#transactionForm input[name="type"], #transactionForm input[name="scope"]').forEach(input => input.addEventListener('change', updateTransactionForm));
 
@@ -670,6 +622,17 @@ $('#planForm').addEventListener('submit', event => {
   saveLocal(false); render(); event.currentTarget.closest('dialog').close(); toast('Planejamento atualizado');
 });
 
+$('#savedFundsForm').addEventListener('submit', event => {
+  if (event.submitter?.value === 'cancel') return;
+  event.preventDefault();
+  const form = new FormData(event.currentTarget);
+  const bank = parseCurrency(form.get('bank')) || 0;
+  const cash = parseCurrency(form.get('cash')) || 0;
+  if (bank < 0 || cash < 0) { toast('Informe valores válidos para a reserva'); return; }
+  appConfig.savedFunds = { bank, cash };
+  saveConfig(); renderSavedFunds(); event.currentTarget.closest('dialog').close(); toast('Dinheiro guardado atualizado');
+});
+
 $('#cardForm').addEventListener('submit', event => {
   if (event.submitter?.value === 'cancel') return;
   event.preventDefault(); const form = new FormData(event.currentTarget), closingDay = Number(form.get('closingDay')), dueDay = Number(form.get('dueDay'));
@@ -701,7 +664,7 @@ $('#closeMonthForm').addEventListener('submit', event => {
   saveLocal(false); render(); event.currentTarget.closest('dialog').close(); toast('Mês fechado e saldo preparado para o próximo');
 });
 
-$('#recordSettlement').addEventListener('click', () => {
+$('#recordSettlement')?.addEventListener('click', () => {
   if (!ensureOpenMonth()) return; const net = settlementBalance(); if (!net) return;
   const from = net > 0 ? 'Namorada' : 'Você', to = net > 0 ? 'Você' : 'Namorada';
   $('#settlementDetail').innerHTML = `<strong>${ownerLabel(from)} transfere ${money(Math.abs(net))} para ${ownerLabel(to)}</strong>`;
@@ -714,48 +677,23 @@ $('#settlementForm').addEventListener('submit', event => {
   saveLocal(false); render(); form.closest('dialog').close(); toast('Acerto registrado');
 });
 
-$('#pinForm').addEventListener('submit', async event => {
-  event.preventDefault();
-  const pin = String(new FormData(event.currentTarget).get('pin') || '');
-  const errorElement = $('#pinError'), button = $('#pinSubmit');
-  if (!/^\d{6}$/.test(pin)) { errorElement.textContent = 'Digite os 6 números do PIN.'; errorElement.hidden = false; return; }
-  errorElement.hidden = true; button.disabled = true; button.textContent = 'Entrando...';
-  let authenticatedUser = null;
-  try {
-    const { data, error } = await supabaseClient.auth.signInWithPassword({ email: SUPABASE_CONFIG.authEmail, password: pin });
-    authenticatedUser = data?.session?.user || data?.user || null;
-    if (!authenticatedUser) {
-      const { data: sessionData } = await supabaseClient.auth.getSession();
-      authenticatedUser = sessionData.session?.user || null;
-    }
-    if (!authenticatedUser) throw error || new Error('Acesso não autorizado');
-  } catch (error) {
-    console.error(error);
-    errorElement.textContent = 'PIN incorreto. Confira os 6 números e tente novamente.';
-    errorElement.hidden = false; $('#pinInput').select();
-    button.disabled = false; button.textContent = 'Entrar';
-    return;
-  }
-
-  event.currentTarget.reset();
-  try { await enterApp(authenticatedUser); }
-  catch (error) {
-    console.error(error);
-    if (!monthData) { loadMonth(); renderCards(); syncRoute(); }
-    toast('Sessão iniciada; alguns dados ainda estão carregando');
-  } finally { button.disabled = false; button.textContent = 'Entrar'; }
+$('#logoutButton').addEventListener('click', async () => {
+  $('#logoutButton').disabled = true;
+  try { await fetch(AUTH_LOGOUT_ENDPOINT, { method: 'POST' }); } finally { location.reload(); }
 });
 
 window.addEventListener('resize', () => { if (monthData) requestAnimationFrame(renderBalanceChart); });
 window.addEventListener('hashchange', () => { if (monthData) syncRoute(); });
 window.addEventListener('beforeprint', () => { if (monthData) render(); });
 window.addEventListener('afterprint', () => { document.title = exportPdf.previousTitle || 'Nosso Caixa'; });
-window.addEventListener('online', () => { if (currentUser) reconcileSupabase({ silent: true }); });
-window.addEventListener('offline', () => { if (currentUser) setSyncState('Sem conexão — salvo neste aparelho', true); });
-document.addEventListener('visibilitychange', () => { if (!document.hidden && currentUser && navigator.onLine) reconcileSupabase({ silent: true }); });
+window.addEventListener('online', () => syncCloudData({ initial: true }).catch(() => {}));
+window.addEventListener('offline', () => { if (appReady) setSyncState('Sem conexão — salvo neste aparelho', true); });
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden && navigator.onLine && appReady) syncCloudData({ initial: true }).catch(() => {});
+});
 
 const categoryOptions = Object.keys(CATEGORIES).filter(category => category !== 'Receita').map(category => `<option>${category}</option>`).join('');
 $('#categorySelect').innerHTML = categoryOptions; $('#billCategorySelect').innerHTML = categoryOptions; $('#installmentCategorySelect').innerHTML = categoryOptions;
 $('#transactionCategoryFilter').innerHTML = `<option value="">Todas</option>${categoryOptions}<option>Receita</option><option>Transferência</option>`;
-initializeSupabase();
+if (!window.__NOSSO_CAIXA_TEST__) initializeApp();
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(() => {});
