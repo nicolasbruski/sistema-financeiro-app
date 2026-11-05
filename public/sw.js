@@ -1,4 +1,4 @@
-const CACHE = 'nosso-caixa-v25';
+const CACHE = 'nosso-caixa-v26';
 const ASSETS = ['./', './index.html', './manifest.webmanifest', './icon.svg'];
 self.addEventListener('install', event => {
   self.skipWaiting();
@@ -12,6 +12,7 @@ self.addEventListener('activate', event => event.waitUntil(
 self.addEventListener('fetch', event => {
   if (event.request.method !== 'GET') return;
   const url = new URL(event.request.url);
+  if (url.origin === self.location.origin && url.pathname.startsWith('/api/')) return;
   if (url.origin !== self.location.origin && url.hostname !== 'cdn.jsdelivr.net') return;
   event.respondWith(caches.match(event.request).then(cached => cached || fetch(event.request).then(response => {
     const copy = response.clone(); caches.open(CACHE).then(cache => cache.put(event.request, copy)); return response;

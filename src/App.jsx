@@ -30,7 +30,7 @@ export default function App() {
         <h1 id="authTitle">Entre para acessar suas finanças</h1>
         <p id="authMessage">Os dados ficam em um arquivo JSON privado no seu repositório.</p>
         <Button asChild className="auth-button">
-          <a href="/api/auth-login"><GitBranch aria-hidden="true" />Continuar com GitHub</a>
+          <a href="/api/auth-login?v=2"><GitBranch aria-hidden="true" />Continuar com GitHub</a>
         </Button>
         <small>O acesso é liberado somente para usuários autorizados.</small>
       </div>

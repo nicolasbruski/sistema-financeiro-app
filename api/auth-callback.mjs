@@ -27,7 +27,7 @@ async function handler(request) {
   if (!userResponse.ok) return new Response('Não foi possível identificar o usuário do GitHub.', { status: 502 });
   if (!isAllowedUser(user.login)) return new Response('Este usuário do GitHub não está autorizado.', { status: 403 });
   const session = createSession(tokenResult.access_token, { login: user.login, name: user.name, avatarUrl: user.avatar_url });
-  const headers = new Headers({ Location: appOrigin(request) });
+  const headers = new Headers({ Location: appOrigin(request), 'Cache-Control': 'no-store' });
   headers.append('Set-Cookie', sessionCookie(request, session));
   headers.append('Set-Cookie', oauthStateCookie(request, '', 0));
   headers.append('Set-Cookie', oauthVerifierCookie(request, '', 0));
