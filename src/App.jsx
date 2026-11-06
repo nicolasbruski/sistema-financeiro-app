@@ -55,6 +55,7 @@ export default function App() {
         <Button className="privacy-button" id="privacyButton" variant="ghost" size="sm" type="button" aria-pressed="false">
           <Eye className="privacy-icon-show" aria-hidden="true" />
           <EyeOff className="privacy-icon-hide" aria-hidden="true" hidden />
+          <span>Ocultar valores</span>
         </Button>
         <Button className="logout-button" id="logoutButton" variant="ghost" size="sm" hidden><LogOut aria-hidden="true" />Sair</Button>
       </div>
