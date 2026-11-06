@@ -173,6 +173,26 @@ label {
   gap: 0.25rem;
 }
 
+.privacy-button,
+.logout-button {
+  color: var(--ink-soft);
+}
+
+.privacy-button {
+  min-width: 2.75rem;
+  min-height: 2.75rem;
+  padding-inline: 0.75rem;
+}
+
+.privacy-button > span {
+  display: none;
+}
+
+.privacy-button[aria-pressed="true"] {
+  background: var(--surface-selected);
+  color: var(--blue-strong);
+}
+
 .sync-note {
   display: inline-flex;
   min-width: 2.75rem;
@@ -824,6 +844,7 @@ input::placeholder { color: #637086; opacity: 1; }
 }
 
 @media (min-width: 80rem) {
+  .privacy-button > span { display: inline; }
   .app-shell { padding-inline: 2rem; }
   .dashboard-top-grid { grid-template-columns: minmax(22rem, 0.9fr) minmax(0, 1.45fr); }
   .panel,

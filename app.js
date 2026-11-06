@@ -12,6 +12,7 @@ const CASH_FLOW_ICONS = {
 const OWNERS = ['Você', 'Namorada', 'Casal'];
 const OWNER_LABELS = { 'Você': 'Nicolas', Namorada: 'Isabella', Casal: 'Compartilhado' };
 const CONFIG_KEY = 'nosso-caixa:config';
+const PRIVACY_KEY = 'nosso-caixa:hide-values';
 const MONTH_PREFIX = 'nosso-caixa:';
 const CLOUD_ENDPOINT = '/api/data';
 const AUTH_SESSION_ENDPOINT = '/api/auth-session';
@@ -23,9 +24,10 @@ let appConfig = loadConfig();
 let cloudSyncTimer = null;
 let applyingCloudData = false;
 let appReady = false;
+let valuesHidden = localStorage.getItem(PRIVACY_KEY) === 'true';
 
 const $ = selector => document.querySelector(selector);
-const money = (cents, digits = 2) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: digits, maximumFractionDigits: digits }).format((Number(cents) || 0) / 100);
+const money = (cents, digits = 2) => valuesHidden ? 'R$ •••••' : new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: digits, maximumFractionDigits: digits }).format((Number(cents) || 0) / 100);
 const monthKey = (date = cursor) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
 const storageKey = (key = monthKey()) => `${MONTH_PREFIX}${key}`;
 const ownerLabel = owner => OWNER_LABELS[owner] || owner || 'Compartilhado';
@@ -56,6 +58,27 @@ function saveConfig(schedule = true) {
   appConfig.updatedAt = new Date().toISOString();
   localStorage.setItem(CONFIG_KEY, JSON.stringify(appConfig));
   if (schedule && $('#syncText')) scheduleCloudSync();
+}
+
+function updatePrivacyButton() {
+  const button = $('#privacyButton');
+  if (!button) return;
+  const label = valuesHidden ? 'Mostrar valores' : 'Ocultar valores';
+  button.setAttribute('aria-label', label);
+  button.setAttribute('aria-pressed', String(valuesHidden));
+  button.title = label;
+  button.querySelector('span').textContent = label;
+  button.querySelector('.privacy-icon-show').hidden = valuesHidden;
+  button.querySelector('.privacy-icon-hide').hidden = !valuesHidden;
+  document.body.classList.toggle('values-hidden', valuesHidden);
+}
+
+function togglePrivacy() {
+  valuesHidden = !valuesHidden;
+  localStorage.setItem(PRIVACY_KEY, String(valuesHidden));
+  updatePrivacyButton();
+  if (monthData) render();
+  toast(valuesHidden ? 'Valores ocultos' : 'Valores visíveis');
 }
 
 function normalizeMonth(data, key = monthKey()) {
@@ -586,6 +609,7 @@ $('#previousMonth').addEventListener('click', () => setMonth(-1));
 $('#nextMonth').addEventListener('click', () => setMonth(1));
 $('#monthPicker').addEventListener('click', () => toast('Use as setas para navegar entre os meses'));
 $('#closeMonthButton').addEventListener('click', openCloseMonth);
+$('#privacyButton').addEventListener('click', togglePrivacy);
 ['#transactionSearch', '#transactionTypeFilter', '#transactionOwnerFilter', '#transactionCategoryFilter', '#transactionSort', '#transactionDateFrom', '#transactionDateTo'].forEach(selector => $(selector).addEventListener('input', renderTransactions));
 $('#clearTransactionFilters').addEventListener('click', () => {
   ['#transactionSearch', '#transactionTypeFilter', '#transactionOwnerFilter', '#transactionCategoryFilter', '#transactionDateFrom', '#transactionDateTo'].forEach(selector => { $(selector).value = ''; });
@@ -783,5 +807,6 @@ document.addEventListener('visibilitychange', () => {
 const categoryOptions = Object.keys(CATEGORIES).filter(category => category !== 'Receita').map(category => `<option>${category}</option>`).join('');
 $('#categorySelect').innerHTML = categoryOptions; $('#billCategorySelect').innerHTML = categoryOptions; $('#installmentCategorySelect').innerHTML = categoryOptions;
 $('#transactionCategoryFilter').innerHTML = `<option value="">Todas</option>${categoryOptions}<option>Receita</option><option>Transferência</option>`;
+updatePrivacyButton();
 if (!window.__NOSSO_CAIXA_TEST__) initializeApp();
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(() => {});
