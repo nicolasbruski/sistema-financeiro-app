@@ -70,12 +70,17 @@ assert.deepEqual({ ...savingsConfig.savedFunds }, { bank: 125050, cash: 2490 });
 
 const cardsConfig = context.loadConfigFrom({
   version: 2,
-  cards: [{ id: 'card-1', name: 'Cartão antigo' }, { id: 'card-2', name: 'Cartão atual', limit: 450000 }]
+  cards: [{ id: 'card-1', name: 'Cartão antigo' }, { id: 'card-2', name: 'Cartão atual', limit: 450000, theme: 'coral' }]
 });
 
 assert.equal(cardsConfig.version, 3);
 assert.equal(cardsConfig.cards[0].limit, 0);
 assert.equal(cardsConfig.cards[1].limit, 450000);
+assert.equal(cardsConfig.cards[1].theme, 'coral');
+assert.ok(['blue', 'teal', 'plum', 'coral', 'navy', 'gold'].includes(cardsConfig.cards[0].theme));
+
+const repairedCardTheme = context.loadConfigFrom({ cards: [{ id: 'card-3', name: 'Tema inválido', theme: 'neon' }] });
+assert.notEqual(repairedCardTheme.cards[0].theme, 'neon');
 
 const repairedSavingsConfig = context.loadConfigFrom({
   savedFunds: { bank: -100, cash: 'valor inválido' }

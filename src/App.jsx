@@ -368,6 +368,24 @@ export default function App() {
         <div className="dialog-head"><div><h2>Cartões</h2><p>Cadastre o limite para acompanhar quanto ainda pode ser usado.</p></div><Button className="icon-button subtle" value="cancel" aria-label="Fechar">×</Button></div>
         <div className="card-list" id="cardList"></div>
         <div className="form-row"><label>Nome<Input name="name" maxLength="30" placeholder="Ex.: Nubank" /></label><label>Titular<NativeSelect name="owner"><option value="Você">Nicolas</option><option value="Namorada">Isabella</option><option value="Casal">Compartilhado</option></NativeSelect></label></div>
+        <fieldset className="card-theme-picker">
+          <legend>Cor do cartão</legend>
+          <p>Essa identidade será usada no dashboard e na tela de contas.</p>
+          <div className="card-theme-options">
+            <Input type="radio" name="theme" id="cardThemeBlue" value="blue" defaultChecked />
+            <label htmlFor="cardThemeBlue"><span className="card-theme-swatch bill-card-blue"><i></i><CreditCard aria-hidden="true" /></span><strong>Azul oceano</strong></label>
+            <Input type="radio" name="theme" id="cardThemeTeal" value="teal" />
+            <label htmlFor="cardThemeTeal"><span className="card-theme-swatch bill-card-teal"><i></i><CreditCard aria-hidden="true" /></span><strong>Esmeralda</strong></label>
+            <Input type="radio" name="theme" id="cardThemePlum" value="plum" />
+            <label htmlFor="cardThemePlum"><span className="card-theme-swatch bill-card-plum"><i></i><CreditCard aria-hidden="true" /></span><strong>Violeta</strong></label>
+            <Input type="radio" name="theme" id="cardThemeCoral" value="coral" />
+            <label htmlFor="cardThemeCoral"><span className="card-theme-swatch bill-card-coral"><i></i><CreditCard aria-hidden="true" /></span><strong>Coral</strong></label>
+            <Input type="radio" name="theme" id="cardThemeNavy" value="navy" />
+            <label htmlFor="cardThemeNavy"><span className="card-theme-swatch bill-card-navy"><i></i><CreditCard aria-hidden="true" /></span><strong>Grafite azul</strong></label>
+            <Input type="radio" name="theme" id="cardThemeGold" value="gold" />
+            <label htmlFor="cardThemeGold"><span className="card-theme-swatch bill-card-gold"><i></i><CreditCard aria-hidden="true" /></span><strong>Dourado</strong></label>
+          </div>
+        </fieldset>
         <label>Limite do cartão<Input name="limit" inputMode="decimal" placeholder="0,00" /></label>
         <div className="form-row"><label>Fecha dia<Input name="closingDay" type="number" min="1" max="31" /></label><label>Vence dia<Input name="dueDay" type="number" min="1" max="31" /></label></div>
         <Button className="button button-primary full" type="submit" id="saveCardButton">Adicionar cartão</Button>

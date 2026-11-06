@@ -14,6 +14,9 @@ const BILL_GROUP_ICONS = {
   unlinked: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2V3Z"></path><path d="M9 8h6M9 12h4"></path></svg>',
   chevron: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m7 10 5 5 5-5"></path></svg>'
 };
+const CARD_THEMES = {
+  blue: 'Azul oceano', teal: 'Esmeralda', plum: 'Violeta', coral: 'Coral', navy: 'Grafite azul', gold: 'Dourado'
+};
 const OWNERS = ['Você', 'Namorada', 'Casal'];
 const OWNER_LABELS = { 'Você': 'Nicolas', Namorada: 'Isabella', Casal: 'Compartilhado' };
 const CONFIG_KEY = 'nosso-caixa:config';
@@ -49,7 +52,7 @@ function safeJson(raw, fallback) { try { return raw ? JSON.parse(raw) : fallback
 function loadConfigFrom(value) {
   const result = { ...defaultConfig(), ...(value || {}) };
   result.recurringBills = Array.isArray(result.recurringBills) ? result.recurringBills : [];
-  result.cards = Array.isArray(result.cards) ? result.cards.map(card => ({ ...card, limit: Math.max(0, Number(card.limit) || 0) })) : [];
+  result.cards = Array.isArray(result.cards) ? result.cards.map(card => ({ ...card, limit: Math.max(0, Number(card.limit) || 0), theme: card.id ? billCardTheme(card) : 'blue' })) : [];
   result.installmentPlans = Array.isArray(result.installmentPlans) ? result.installmentPlans : [];
   result.savedFunds = {
     bank: Math.max(0, Number(result.savedFunds?.bank) || 0),
@@ -245,6 +248,7 @@ function billCardDetails(bill, config = appConfig) {
     id: cardId,
     name: card?.name || bill.cardName || plan?.cardName || 'Cartão removido',
     owner: card?.owner || bill.cardOwner || plan?.cardOwner || plan?.paidBy || null,
+    theme: card?.theme || null,
     missing: !card
   };
 }
@@ -265,7 +269,8 @@ function groupBillsByCard(bills, config = appConfig) {
 }
 function billCardTheme(card) {
   if (!card.id) return 'unlinked';
-  const themes = ['blue', 'teal', 'plum', 'coral', 'navy'];
+  if (CARD_THEMES[card.theme]) return card.theme;
+  const themes = Object.keys(CARD_THEMES);
   const identity = `${card.id}:${card.name}`;
   const hash = [...identity].reduce((total, character) => ((total * 31) + character.charCodeAt(0)) >>> 0, 0);
   return themes[hash % themes.length];
@@ -489,7 +494,7 @@ function updateBillScheduleFields() {
       : 'Use 1 para uma conta sem parcelas. As demais vencem nos meses seguintes.';
 }
 function renderCards() {
-  $('#cardList').innerHTML = appConfig.cards.length ? appConfig.cards.map(card => `<div class="card-item"><div><strong>${escapeHtml(card.name)}</strong><span>${ownerLabel(card.owner)} · limite ${card.limit ? money(card.limit) : 'não informado'} · fecha dia ${card.closingDay} · vence dia ${card.dueDay}</span></div><div class="card-item-actions"><button type="button" data-card-edit="${card.id}" aria-label="Editar ${escapeHtml(card.name)}">Editar</button><button type="button" data-card-remove="${card.id}" aria-label="Excluir ${escapeHtml(card.name)}">Excluir</button></div></div>`).join('') : '<div class="bill-empty">Nenhum cartão cadastrado.</div>';
+  $('#cardList').innerHTML = appConfig.cards.length ? appConfig.cards.map(card => `<div class="card-item"><i class="card-theme-dot bill-card-${billCardTheme(card)}" aria-hidden="true"></i><div><strong>${escapeHtml(card.name)}</strong><span>${ownerLabel(card.owner)} · limite ${card.limit ? money(card.limit) : 'não informado'} · fecha dia ${card.closingDay} · vence dia ${card.dueDay}</span></div><div class="card-item-actions"><button type="button" data-card-edit="${card.id}" aria-label="Editar ${escapeHtml(card.name)}">Editar</button><button type="button" data-card-remove="${card.id}" aria-label="Excluir ${escapeHtml(card.name)}">Excluir</button></div></div>`).join('') : '<div class="bill-empty">Nenhum cartão cadastrado.</div>';
   const options = appConfig.cards.map(card => `<option value="${card.id}">${escapeHtml(card.name)} · cartão de ${ownerLabel(card.owner)}</option>`).join('');
   $('#installmentCardSelect').innerHTML = options;
   $('#billCardSelect').innerHTML = `<option value="">Sem cartão</option>${options}`;
@@ -501,12 +506,14 @@ function renderCreditCards() {
   $('#creditAvailableTotal').classList.toggle('is-negative', summary.available < 0);
   $('#creditCardOverview').innerHTML = items.length ? items.map(({ card, used, limit, available, invoice }) => {
     const percent = limit ? Math.min(100, Math.round(used / limit * 100)) : 0;
-    return `<article class="credit-card-row"><div class="credit-card-main"><div><strong>${escapeHtml(card.name)}</strong><span>${ownerLabel(card.owner)} · fatura atual ${money(invoice)}</span></div><strong class="credit-card-available ${available < 0 ? 'is-negative' : ''}">${limit ? money(available) : 'Defina o limite'}<small>${limit ? 'disponível' : ''}</small></strong></div><div class="credit-progress" role="progressbar" aria-label="Limite usado do cartão ${escapeHtml(card.name)}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${percent}"><i style="width:${percent}%"></i></div><div class="credit-card-meta"><span>${money(used)} em uso</span><span>${limit ? `${money(limit)} de limite` : 'Limite não informado'}</span></div></article>`;
+    const theme = billCardTheme(card);
+    return `<article class="credit-card-row bill-card bill-card-${theme}"><div class="credit-card-visual"><span class="bill-card-art" aria-hidden="true"><i></i>${BILL_GROUP_ICONS.card}</span><span class="bill-card-copy"><strong>${escapeHtml(card.name)}</strong><span>Cartão de ${escapeHtml(ownerLabel(card.owner))}</span><em>Fatura atual ${money(invoice)}</em></span><strong class="credit-card-available ${available < 0 ? 'is-negative' : ''}">${limit ? money(available) : 'Defina o limite'}<small>${limit ? 'disponível' : ''}</small></strong></div><div class="credit-card-body"><div class="credit-progress" role="progressbar" aria-label="Limite usado do cartão ${escapeHtml(card.name)}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${percent}"><i style="width:${percent}%"></i></div><div class="credit-card-meta"><span>${money(used)} em uso</span><span>${limit ? `${money(limit)} de limite` : 'Limite não informado'}</span></div></div></article>`;
   }).join('') : '<div class="credit-empty"><strong>Cadastre o primeiro cartão</strong><span>O limite disponível e as faturas aparecerão aqui.</span></div>';
 }
 function openCards(card = null) {
   renderCards(); const form = $('#cardForm'); form.reset(); form.dataset.editId = card?.id || '';
   $('#saveCardButton').textContent = card ? 'Salvar cartão' : 'Adicionar cartão';
+  form.elements.theme.value = card ? billCardTheme(card) : 'blue';
   if (card) { form.elements.name.value = card.name; form.elements.owner.value = card.owner; setFormCurrency(form.elements.limit, card.limit); form.elements.closingDay.value = card.closingDay; form.elements.dueDay.value = card.dueDay; }
   openDialog('#cardsDialog');
 }
@@ -800,7 +807,8 @@ $('#cardForm').addEventListener('submit', event => {
   if (event.submitter?.value === 'cancel') return;
   event.preventDefault(); const formElement = event.currentTarget, form = new FormData(formElement), closingDay = Number(form.get('closingDay')), dueDay = Number(form.get('dueDay')), limit = parseCurrency(form.get('limit')), name = String(form.get('name')).trim();
   if (!name || !limit || limit < 0 || closingDay < 1 || closingDay > 31 || dueDay < 1 || dueDay > 31) { toast('Informe nome, limite, fechamento e vencimento válidos'); return; }
-  const data = { name, owner: form.get('owner'), limit, closingDay, dueDay }, editId = formElement.dataset.editId;
+  const theme = CARD_THEMES[form.get('theme')] ? form.get('theme') : 'blue';
+  const data = { name, owner: form.get('owner'), theme, limit, closingDay, dueDay }, editId = formElement.dataset.editId;
   if (editId) {
     const card = appConfig.cards.find(item => item.id === editId);
     if (card) {
