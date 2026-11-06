@@ -238,7 +238,6 @@ export default function App() {
     <nav className="mobile-nav" aria-label="Navegação móvel">
       <a className="is-active" href="#inicio" data-view="inicio"><LayoutDashboard aria-hidden="true" />Início</a>
       <a href="#gastos" data-view="lancamentos"><WalletCards aria-hidden="true" />Gastos</a>
-      <Button id="mobileAdd" aria-label="Nova movimentação"><CirclePlus aria-hidden="true" /></Button>
       <a href="#contas" data-view="contas"><CreditCard aria-hidden="true" />Dívidas</a>
     </nav>
 

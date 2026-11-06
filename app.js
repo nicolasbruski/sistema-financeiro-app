@@ -338,7 +338,7 @@ function renderBalanceChart() {
 }
 function updateClosedState() {
   const closed = monthData.status === 'closed'; $('#closeMonthButton').textContent = closed ? 'Reabrir mês' : 'Fechar mês';
-  ['#openTransaction', '#openBill', '#openInstallment', '#mobileAdd', '#editPlan', '#quickExpense', '#quickIncome', '#quickBill', '#quickPlan'].forEach(selector => { if ($(selector)) $(selector).disabled = closed; }); document.body.classList.toggle('month-closed', closed);
+  ['#openTransaction', '#openBill', '#openInstallment', '#editPlan', '#quickExpense', '#quickIncome', '#quickBill', '#quickPlan'].forEach(selector => { if ($(selector)) $(selector).disabled = closed; }); document.body.classList.toggle('month-closed', closed);
 }
 function formatMonthLabel(key) { return new Intl.DateTimeFormat('pt-BR', { month: 'long', year: 'numeric' }).format(parseMonthKey(key)); }
 
@@ -562,7 +562,6 @@ $('#quickExpense')?.addEventListener('click', () => openTransaction());
 $('#quickIncome')?.addEventListener('click', () => { openTransaction(); $('#incomeType').checked = true; updateTransactionForm(); });
 $('#quickBill')?.addEventListener('click', () => openBill());
 $('#quickPlan')?.addEventListener('click', () => $('#editPlan').click());
-$('#mobileAdd').addEventListener('click', () => { location.hash = 'gastos'; openTransaction(); });
 $('#previousMonth').addEventListener('click', () => setMonth(-1));
 $('#nextMonth').addEventListener('click', () => setMonth(1));
 $('#monthPicker').addEventListener('click', () => toast('Use as setas para navegar entre os meses'));
