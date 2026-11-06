@@ -753,6 +753,42 @@ h2 { font-size: 0.98rem; font-weight: 700; letter-spacing: -0.015em; text-wrap: 
 .saved-funds-fields label svg { width: 1rem; height: 1rem; color: var(--green); }
 .saved-funds-note { margin: -0.15rem 0 0; border-radius: 0.7rem; padding: 0.75rem 0.85rem; background: var(--mist); color: var(--ink-soft); font-size: 0.75rem; line-height: 1.45; }
 
+.credit-panel { margin-top: 0.75rem; }
+.credit-heading { align-items: center; }
+.credit-heading > div:first-child { display: grid; grid-template-columns: auto minmax(0, 1fr); column-gap: 0.65rem; align-items: center; }
+.credit-heading h2 { align-self: end; }
+.credit-heading p { grid-column: 2; max-width: 62ch; margin-top: 0.1rem; }
+.credit-icon { display: grid; grid-row: 1 / span 2; place-items: center; width: 2.35rem; height: 2.35rem; border-radius: 0.7rem; background: #edf1ff; color: var(--blue); }
+.credit-icon svg { width: 1.25rem; height: 1.25rem; }
+.credit-actions { display: grid; flex: 0 0 auto; grid-template-columns: 1fr; }
+.credit-summary { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.65rem; margin-bottom: 1rem; }
+.credit-summary > div { display: grid; gap: 0.15rem; min-width: 0; border-radius: 0.7rem; padding: 0.75rem; background: var(--mist); }
+.credit-summary .credit-available { grid-column: 1 / -1; background: #e8f5f1; }
+.credit-summary span { color: var(--ink-soft); font-size: 0.7rem; }
+.credit-summary strong { overflow: hidden; font-size: 1rem; font-variant-numeric: tabular-nums; text-overflow: ellipsis; white-space: nowrap; }
+.credit-summary .credit-available strong { color: #08755c; }
+.credit-summary strong.is-negative, .credit-card-available.is-negative { color: #b54432; }
+.credit-card-overview { display: grid; gap: 0.75rem; }
+.credit-card-row { min-width: 0; border-top: 1px solid var(--line); padding-top: 0.75rem; }
+.credit-card-main { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; }
+.credit-card-main > div { min-width: 0; }
+.credit-card-main strong, .credit-card-main span, .credit-card-available small { display: block; }
+.credit-card-main > div > strong { overflow: hidden; font-size: 0.82rem; text-overflow: ellipsis; white-space: nowrap; }
+.credit-card-main span { margin-top: 0.12rem; color: var(--ink-soft); font-size: 0.7rem; }
+.credit-card-available { flex: 0 0 auto; color: #08755c; font-size: 0.85rem; text-align: right; }
+.credit-card-available small { margin-top: 0.05rem; color: var(--ink-soft); font-size: 0.62rem; font-weight: 500; }
+.credit-progress { overflow: hidden; height: 0.42rem; margin-top: 0.6rem; border-radius: 999px; background: #e6ebf0; }
+.credit-progress i { display: block; height: 100%; border-radius: inherit; background: var(--blue); }
+.credit-card-meta { display: flex; justify-content: space-between; gap: 1rem; margin-top: 0.3rem; color: var(--ink-soft); font-size: 0.65rem; }
+.credit-card-pay { width: 100%; min-height: 2.5rem; margin-top: 0.65rem; border: 1px solid #c9d5e2; border-radius: 0.65rem; background: var(--paper); color: var(--blue); cursor: pointer; font-size: 0.72rem; font-weight: 700; }
+.credit-card-pay:hover { border-color: var(--blue); background: #f4f6ff; }
+.credit-card-pay:disabled { cursor: not-allowed; opacity: 0.5; }
+.credit-empty { display: grid; gap: 0.2rem; border-top: 1px solid var(--line); padding: 1rem 0 0.25rem; color: var(--ink-soft); text-align: center; }
+.credit-empty strong { color: var(--ink); font-size: 0.82rem; }
+.credit-empty span { font-size: 0.72rem; }
+.card-item-actions { display: flex; flex: 0 0 auto; gap: 0.15rem; }
+.card-item .card-item-actions button { width: auto; padding-inline: 0.55rem; font-size: 0.7rem; font-weight: 700; }
+
 @media (min-width: 48rem) {
   .dashboard-secondary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: stretch; }
   .dashboard-secondary-grid .ownership-summary,
@@ -760,6 +796,10 @@ h2 { font-size: 0.98rem; font-weight: 700; letter-spacing: -0.015em; text-wrap: 
   .dashboard-secondary-grid .savings-panel { height: 100%; }
   .dashboard-secondary-grid .recent-panel { grid-column: 1 / -1; }
   .saved-funds-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .credit-actions { display: flex; width: auto; }
+  .credit-summary { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .credit-summary .credit-available { grid-column: auto; }
+  .credit-card-overview { grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr)); column-gap: 1.25rem; }
   .dashboard-grid { margin-top: 0.75rem; }
   .rhythm-panel { grid-column: span 7; }
   .category-panel { grid-column: span 5; }

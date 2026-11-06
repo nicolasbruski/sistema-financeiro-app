@@ -162,6 +162,26 @@ export default function App() {
           </Card>
         </div>
 
+        <Card className="panel credit-panel" aria-labelledby="creditTitle">
+          <div className="panel-heading credit-heading">
+            <div>
+              <span className="credit-icon" aria-hidden="true"><CreditCard /></span>
+              <h2 id="creditTitle">Crédito disponível</h2>
+              <p>Compras usam o limite; o saldo só diminui quando a fatura é paga.</p>
+            </div>
+            <div className="heading-actions credit-actions">
+              <Button className="button button-secondary compact-action" id="openCards">Gerenciar cartões</Button>
+              <Button className="button button-primary compact-action" id="openInstallment"><CirclePlus aria-hidden="true" /> Compra no cartão</Button>
+            </div>
+          </div>
+          <div className="credit-summary">
+            <div><span>Limite total</span><strong id="creditLimitTotal">R$ 0,00</strong></div>
+            <div><span>Em uso</span><strong id="creditUsedTotal">R$ 0,00</strong></div>
+            <div className="credit-available"><span>Disponível para usar</span><strong id="creditAvailableTotal">R$ 0,00</strong></div>
+          </div>
+          <div className="credit-card-overview" id="creditCardOverview"></div>
+        </Card>
+
         <div className="dashboard-grid">
           <Card className="panel rhythm-panel" aria-labelledby="rhythmTitle">
             <div className="panel-heading">
@@ -321,26 +341,27 @@ export default function App() {
 
     <Dialog id="cardsDialog" className="dialog compact-dialog">
       <form method="dialog" id="cardForm">
-        <div className="dialog-head"><div><h2>Cartões</h2><p>Cadastre os cartões usados nas compras parceladas.</p></div><Button className="icon-button subtle" value="cancel" aria-label="Fechar">×</Button></div>
+        <div className="dialog-head"><div><h2>Cartões</h2><p>Cadastre o limite para acompanhar quanto ainda pode ser usado.</p></div><Button className="icon-button subtle" value="cancel" aria-label="Fechar">×</Button></div>
         <div className="card-list" id="cardList"></div>
         <div className="form-row"><label>Nome<Input name="name" maxLength="30" placeholder="Ex.: Nubank" /></label><label>Titular<NativeSelect name="owner"><option value="Você">Nicolas</option><option value="Namorada">Isabella</option><option value="Casal">Compartilhado</option></NativeSelect></label></div>
+        <label>Limite do cartão<Input name="limit" inputMode="decimal" placeholder="0,00" /></label>
         <div className="form-row"><label>Fecha dia<Input name="closingDay" type="number" min="1" max="31" /></label><label>Vence dia<Input name="dueDay" type="number" min="1" max="31" /></label></div>
-        <Button className="button button-primary full" type="submit">Adicionar cartão</Button>
+        <Button className="button button-primary full" type="submit" id="saveCardButton">Adicionar cartão</Button>
       </form>
     </Dialog>
 
     <Dialog id="installmentDialog" className="dialog compact-dialog">
       <form method="dialog" id="installmentForm">
-        <div className="dialog-head"><div><h2>Compra parcelada</h2><p>As parcelas aparecerão nas faturas futuras.</p></div><Button className="icon-button subtle" value="cancel" aria-label="Fechar">×</Button></div>
+        <div className="dialog-head"><div><h2>Compra no cartão</h2><p>A compra usa o limite agora e será cobrada na fatura correta.</p></div><Button className="icon-button subtle" value="cancel" aria-label="Fechar">×</Button></div>
         <label>Cartão<NativeSelect name="cardId" id="installmentCardSelect"></NativeSelect></label>
         <label>Descrição<Input name="description" maxLength="60" placeholder="Ex.: Notebook" /></label>
-        <div className="form-row"><label>Valor total<Input name="value" inputMode="decimal" placeholder="0,00" /></label><label>Parcelas<Input name="installments" type="number" min="2" max="60" defaultValue="2" /></label></div>
+        <div className="form-row"><label>Valor total<Input name="value" inputMode="decimal" placeholder="0,00" /></label><label>Parcelas<Input name="installments" type="number" min="1" max="60" defaultValue="1" /><small>Use 1 para compra à vista no cartão.</small></label></div>
         <div className="form-row"><label>Data da compra<Input name="purchaseDate" type="date" /></label><label>Categoria<NativeSelect name="category" id="installmentCategorySelect"></NativeSelect></label></div>
         <div className="type-toggle">
           <Input type="radio" name="scope" id="installmentIndividual" value="individual" defaultChecked /><label htmlFor="installmentIndividual">Individual</label>
           <Input type="radio" name="scope" id="installmentShared" value="shared" /><label htmlFor="installmentShared">Compartilhada</label>
         </div>
-        <Button className="button button-primary full" type="submit">Criar parcelas</Button>
+        <Button className="button button-primary full" type="submit">Registrar compra</Button>
       </form>
     </Dialog>
 

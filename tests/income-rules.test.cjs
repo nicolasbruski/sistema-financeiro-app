@@ -65,8 +65,17 @@ const savingsConfig = context.loadConfigFrom({
   savedFunds: { bank: 125050, cash: 2490 }
 });
 
-assert.equal(savingsConfig.version, 2);
+assert.equal(savingsConfig.version, 3);
 assert.deepEqual({ ...savingsConfig.savedFunds }, { bank: 125050, cash: 2490 });
+
+const cardsConfig = context.loadConfigFrom({
+  version: 2,
+  cards: [{ id: 'card-1', name: 'Cartão antigo' }, { id: 'card-2', name: 'Cartão atual', limit: 450000 }]
+});
+
+assert.equal(cardsConfig.version, 3);
+assert.equal(cardsConfig.cards[0].limit, 0);
+assert.equal(cardsConfig.cards[1].limit, 450000);
 
 const repairedSavingsConfig = context.loadConfigFrom({
   savedFunds: { bank: -100, cash: 'valor inválido' }
@@ -177,5 +186,18 @@ const monthWithGasoline = context.normalizeMonth({
 }, '2026-12');
 
 assert.equal(context.gasolineExpenseTotal(monthWithGasoline), 35_000);
+
+const creditConfig = {
+  installmentPlans: [{ id: 'plan-1', cardId: 'card-1', totalValue: 10_000, installments: 3, firstMonth: '2026-10' }]
+};
+const creditMonths = {
+  '2026-10': { bills: [{ installmentPlanId: 'plan-1', installmentNumber: 1, paid: true }] },
+  '2026-11': { bills: [{ installmentPlanId: 'plan-1', installmentNumber: 2, paid: false }] },
+  '2026-12': { bills: [] },
+  '2027-01': { bills: [{ installmentPlanId: 'plan-1', installmentNumber: 2, paid: true, carriedFrom: '2026-11' }] }
+};
+
+context.localStorage.setItem('nosso-caixa:2027-01', JSON.stringify(creditMonths['2027-01']));
+assert.equal(context.cardOutstanding('card-1', creditConfig, key => creditMonths[key]), 3_334);
 
 console.log('income rules: ok');
