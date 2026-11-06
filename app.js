@@ -536,7 +536,7 @@ async function syncCloudData({ initial = false } = {}) {
     if (initial) applyCloudData(await requestCloud('GET'));
     applyCloudData(await requestCloud('POST', collectCloudData()));
     if (monthData) { monthData = readMonth(monthKey()); render(); renderCards(); }
-    setSyncState('Salvo online e neste aparelho');
+    setSyncState('Online');
   } catch (error) {
     console.error(error);
     setSyncState('Salvo neste aparelho — online indisponível', true);
