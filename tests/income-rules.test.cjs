@@ -70,17 +70,23 @@ assert.deepEqual({ ...savingsConfig.savedFunds }, { bank: 125050, cash: 2490 });
 
 const cardsConfig = context.loadConfigFrom({
   version: 2,
-  cards: [{ id: 'card-1', name: 'Cartão antigo' }, { id: 'card-2', name: 'Cartão atual', limit: 450000, theme: 'coral' }]
+  cards: [{ id: 'card-1', name: 'Cartão antigo' }, { id: 'card-2', name: 'Cartão atual', limit: 450000, color: '#12ab34' }]
 });
 
 assert.equal(cardsConfig.version, 3);
 assert.equal(cardsConfig.cards[0].limit, 0);
 assert.equal(cardsConfig.cards[1].limit, 450000);
-assert.equal(cardsConfig.cards[1].theme, 'coral');
-assert.ok(['blue', 'teal', 'plum', 'coral', 'navy', 'gold'].includes(cardsConfig.cards[0].theme));
+assert.equal(cardsConfig.cards[1].color, '#12ab34');
+assert.match(cardsConfig.cards[0].color, /^#[0-9a-f]{6}$/);
 
-const repairedCardTheme = context.loadConfigFrom({ cards: [{ id: 'card-3', name: 'Tema inválido', theme: 'neon' }] });
-assert.notEqual(repairedCardTheme.cards[0].theme, 'neon');
+const migratedCardTheme = context.loadConfigFrom({ cards: [{ id: 'card-3', name: 'Tema antigo', theme: 'coral' }] });
+assert.equal(migratedCardTheme.cards[0].color, '#aa4d42');
+const repairedCardColor = context.loadConfigFrom({ cards: [{ id: 'card-4', name: 'Cor inválida', color: 'neon' }] });
+assert.match(repairedCardColor.cards[0].color, /^#[0-9a-f]{6}$/);
+assert.equal(context.hslToHex(0, 100, 50), '#ff0000');
+assert.deepEqual({ ...context.hexToHsl('#ff0000') }, { hue: 0, saturation: 100, lightness: 50 });
+assert.equal(context.cardColorTokens('#ffffff').text, '#172033');
+assert.equal(context.cardColorTokens('#000000').text, '#ffffff');
 
 const repairedSavingsConfig = context.loadConfigFrom({
   savedFunds: { bank: -100, cash: 'valor inválido' }

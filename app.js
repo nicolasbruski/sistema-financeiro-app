@@ -14,9 +14,8 @@ const BILL_GROUP_ICONS = {
   unlinked: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2V3Z"></path><path d="M9 8h6M9 12h4"></path></svg>',
   chevron: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m7 10 5 5 5-5"></path></svg>'
 };
-const CARD_THEMES = {
-  blue: 'Azul oceano', teal: 'Esmeralda', plum: 'Violeta', coral: 'Coral', navy: 'Grafite azul', gold: 'Dourado'
-};
+const LEGACY_CARD_COLORS = { blue: '#365eb9', teal: '#19766f', plum: '#73529d', coral: '#aa4d42', navy: '#3b577c', gold: '#895a18' };
+const DEFAULT_CARD_COLOR = '#365eb9';
 const OWNERS = ['Você', 'Namorada', 'Casal'];
 const OWNER_LABELS = { 'Você': 'Nicolas', Namorada: 'Isabella', Casal: 'Compartilhado' };
 const CONFIG_KEY = 'nosso-caixa:config';
@@ -52,7 +51,7 @@ function safeJson(raw, fallback) { try { return raw ? JSON.parse(raw) : fallback
 function loadConfigFrom(value) {
   const result = { ...defaultConfig(), ...(value || {}) };
   result.recurringBills = Array.isArray(result.recurringBills) ? result.recurringBills : [];
-  result.cards = Array.isArray(result.cards) ? result.cards.map(card => ({ ...card, limit: Math.max(0, Number(card.limit) || 0), theme: card.id ? billCardTheme(card) : 'blue' })) : [];
+  result.cards = Array.isArray(result.cards) ? result.cards.map(card => { const { theme: _legacyTheme, ...current } = card; return { ...current, limit: Math.max(0, Number(card.limit) || 0), color: cardColor(card) }; }) : [];
   result.installmentPlans = Array.isArray(result.installmentPlans) ? result.installmentPlans : [];
   result.savedFunds = {
     bank: Math.max(0, Number(result.savedFunds?.bank) || 0),
@@ -248,7 +247,7 @@ function billCardDetails(bill, config = appConfig) {
     id: cardId,
     name: card?.name || bill.cardName || plan?.cardName || 'Cartão removido',
     owner: card?.owner || bill.cardOwner || plan?.cardOwner || plan?.paidBy || null,
-    theme: card?.theme || null,
+    color: card?.color || null,
     missing: !card
   };
 }
@@ -267,13 +266,57 @@ function groupBillsByCard(bills, config = appConfig) {
       || first.card.name.localeCompare(second.card.name, 'pt-BR');
   });
 }
-function billCardTheme(card) {
-  if (!card.id) return 'unlinked';
-  if (CARD_THEMES[card.theme]) return card.theme;
-  const themes = Object.keys(CARD_THEMES);
+function normalizeHexColor(value, fallback = DEFAULT_CARD_COLOR) {
+  const color = String(value || '').trim();
+  return /^#[0-9a-f]{6}$/i.test(color) ? color.toLowerCase() : fallback;
+}
+function legacyCardColor(card) {
+  if (LEGACY_CARD_COLORS[card.theme]) return LEGACY_CARD_COLORS[card.theme];
+  const colors = Object.values(LEGACY_CARD_COLORS);
   const identity = `${card.id}:${card.name}`;
   const hash = [...identity].reduce((total, character) => ((total * 31) + character.charCodeAt(0)) >>> 0, 0);
-  return themes[hash % themes.length];
+  return colors[hash % colors.length];
+}
+function cardColor(card) {
+  if (!card?.id) return '#718096';
+  return normalizeHexColor(card.color, legacyCardColor(card));
+}
+function hexToHsl(value) {
+  const hex = normalizeHexColor(value).slice(1);
+  const [red, green, blue] = [0, 2, 4].map(index => parseInt(hex.slice(index, index + 2), 16) / 255);
+  const max = Math.max(red, green, blue), min = Math.min(red, green, blue), lightness = (max + min) / 2;
+  if (max === min) return { hue: 0, saturation: 0, lightness: Math.round(lightness * 100) };
+  const delta = max - min;
+  const saturation = delta / (1 - Math.abs(2 * lightness - 1));
+  let hue = max === red ? ((green - blue) / delta) % 6 : max === green ? (blue - red) / delta + 2 : (red - green) / delta + 4;
+  hue = Math.round(hue * 60); if (hue < 0) hue += 360;
+  return { hue, saturation: Math.round(saturation * 100), lightness: Math.round(lightness * 100) };
+}
+function hslToHex(hue, saturation, lightness) {
+  const h = ((Number(hue) % 360) + 360) % 360, s = Math.min(100, Math.max(0, Number(saturation))) / 100, l = Math.min(100, Math.max(0, Number(lightness))) / 100;
+  const chroma = (1 - Math.abs(2 * l - 1)) * s, part = h / 60, x = chroma * (1 - Math.abs(part % 2 - 1));
+  const [red, green, blue] = part < 1 ? [chroma, x, 0] : part < 2 ? [x, chroma, 0] : part < 3 ? [0, chroma, x] : part < 4 ? [0, x, chroma] : part < 5 ? [x, 0, chroma] : [chroma, 0, x];
+  const match = l - chroma / 2;
+  return `#${[red, green, blue].map(channel => Math.round((channel + match) * 255).toString(16).padStart(2, '0')).join('')}`;
+}
+function colorLuminance(value) {
+  const hex = normalizeHexColor(value).slice(1);
+  const channels = [0, 2, 4].map(index => parseInt(hex.slice(index, index + 2), 16) / 255).map(channel => channel <= .04045 ? channel / 12.92 : ((channel + .055) / 1.055) ** 2.4);
+  return .2126 * channels[0] + .7152 * channels[1] + .0722 * channels[2];
+}
+function cardColorTokens(value) {
+  const from = normalizeHexColor(value), hsl = hexToHsl(from);
+  const lightText = 1.05 / (colorLuminance(from) + .05) >= 4.5;
+  const text = lightText ? '#ffffff' : '#172033';
+  const targetLightness = lightText ? Math.max(8, hsl.lightness - 14) : Math.min(92, hsl.lightness + 10);
+  return { from, to: hslToHex(hsl.hue, hsl.saturation, targetLightness), text };
+}
+function cardColorVariables(value) {
+  const colors = cardColorTokens(value);
+  return `--bill-card-from:${colors.from};--bill-card-to:${colors.to};--bill-card-text:${colors.text}`;
+}
+function cardColorStyle(card) {
+  return `style="${cardColorVariables(cardColor(card))}"`;
 }
 function settlementBalance(data = monthData) {
   let net = 0;
@@ -396,14 +439,13 @@ function renderBills() {
     const cardCaption = group.card.id
       ? `${group.card.missing ? 'Cartão removido' : 'Titular do cartão'}: ${owner || 'não identificado'}`
       : 'Dívidas que não estão vinculadas a um cartão';
-    const theme = billCardTheme(group.card);
     const icon = group.card.id ? BILL_GROUP_ICONS.card : BILL_GROUP_ICONS.unlinked;
     const open = openGroups.has(group.card.key) ? ' open' : '';
     const items = group.bills.map(bill => {
       const tags = [bill.recurrenceId ? 'Recorrente' : '', bill.installmentPlanId ? `Parcela ${bill.installmentNumber} de ${bill.installmentCount}` : '', bill.carriedFrom ? `Pendente de ${bill.carriedFrom}` : ''].filter(Boolean);
       return `<article class="bill-item ${bill.paid ? 'is-paid' : ''}"><label class="bill-check" aria-label="Marcar ${escapeHtml(bill.description)} como ${bill.paid ? 'pendente' : 'paga'}"><input type="checkbox" data-bill-id="${bill.id}" ${bill.paid ? 'checked' : ''} ${monthData.status === 'closed' ? 'disabled' : ''}><span aria-hidden="true">✓</span></label><div class="bill-main"><strong>${escapeHtml(bill.description)}</strong><span><i class="owner-pill ${ownerClass(bill.paidBy)}">Dívida de ${escapeHtml(ownerLabel(bill.paidBy))}</i> · Vence dia ${bill.dueDay} · ${escapeHtml(bill.category)}${tags.length ? ` · ${escapeHtml(tags.join(' · '))}` : ''}</span></div><div class="bill-value"><strong>${money(bill.value)}</strong><span>${bill.paid ? 'Paga' : 'Pendente'}</span></div><div class="row-actions"><button type="button" data-bill-action="edit" data-id="${bill.id}">Editar</button><button type="button" data-bill-action="delete" data-id="${bill.id}">Excluir</button></div></article>`;
     }).join('');
-    return `<details class="bill-card bill-card-${theme}" data-bill-group="${escapeHtml(group.card.key)}"${open}><summary class="bill-card-summary"><span class="bill-card-art" aria-hidden="true"><i></i>${icon}</span><span class="bill-card-copy"><strong>${escapeHtml(group.card.name)}</strong><span>${escapeHtml(cardCaption)}</span><em><span class="bill-card-action-closed">Ver contas vinculadas</span><span class="bill-card-action-open">Ocultar contas</span></em></span><span class="bill-group-total"><strong>${money(groupTotal)}</strong><span>${groupPending.length} ${groupPending.length === 1 ? 'pendente' : 'pendentes'}</span></span><span class="bill-card-chevron" aria-hidden="true">${BILL_GROUP_ICONS.chevron}</span></summary><div class="bill-group-items">${items}</div></details>`;
+    return `<details class="bill-card" ${cardColorStyle(group.card)} data-bill-group="${escapeHtml(group.card.key)}"${open}><summary class="bill-card-summary"><span class="bill-card-art" aria-hidden="true"><i></i>${icon}</span><span class="bill-card-copy"><strong>${escapeHtml(group.card.name)}</strong><span>${escapeHtml(cardCaption)}</span><em><span class="bill-card-action-closed">Ver contas vinculadas</span><span class="bill-card-action-open">Ocultar contas</span></em></span><span class="bill-group-total"><strong>${money(groupTotal)}</strong><span>${groupPending.length} ${groupPending.length === 1 ? 'pendente' : 'pendentes'}</span></span><span class="bill-card-chevron" aria-hidden="true">${BILL_GROUP_ICONS.chevron}</span></summary><div class="bill-group-items">${items}</div></details>`;
   }).join('') : '<div class="bill-empty"><strong>Cadastre faturas e contas fixas.</strong><br>Elas entram no valor comprometido e na previsão do mês.</div>';
 }
 function renderAlerts(projected) {
@@ -494,7 +536,7 @@ function updateBillScheduleFields() {
       : 'Use 1 para uma conta sem parcelas. As demais vencem nos meses seguintes.';
 }
 function renderCards() {
-  $('#cardList').innerHTML = appConfig.cards.length ? appConfig.cards.map(card => `<div class="card-item"><i class="card-theme-dot bill-card-${billCardTheme(card)}" aria-hidden="true"></i><div><strong>${escapeHtml(card.name)}</strong><span>${ownerLabel(card.owner)} · limite ${card.limit ? money(card.limit) : 'não informado'} · fecha dia ${card.closingDay} · vence dia ${card.dueDay}</span></div><div class="card-item-actions"><button type="button" data-card-edit="${card.id}" aria-label="Editar ${escapeHtml(card.name)}">Editar</button><button type="button" data-card-remove="${card.id}" aria-label="Excluir ${escapeHtml(card.name)}">Excluir</button></div></div>`).join('') : '<div class="bill-empty">Nenhum cartão cadastrado.</div>';
+  $('#cardList').innerHTML = appConfig.cards.length ? appConfig.cards.map(card => `<div class="card-item"><i class="card-color-dot" ${cardColorStyle(card)} aria-hidden="true"></i><div><strong>${escapeHtml(card.name)}</strong><span>${ownerLabel(card.owner)} · limite ${card.limit ? money(card.limit) : 'não informado'} · fecha dia ${card.closingDay} · vence dia ${card.dueDay}</span></div><div class="card-item-actions"><button type="button" data-card-edit="${card.id}" aria-label="Editar ${escapeHtml(card.name)}">Editar</button><button type="button" data-card-remove="${card.id}" aria-label="Excluir ${escapeHtml(card.name)}">Excluir</button></div></div>`).join('') : '<div class="bill-empty">Nenhum cartão cadastrado.</div>';
   const options = appConfig.cards.map(card => `<option value="${card.id}">${escapeHtml(card.name)} · cartão de ${ownerLabel(card.owner)}</option>`).join('');
   $('#installmentCardSelect').innerHTML = options;
   $('#billCardSelect').innerHTML = `<option value="">Sem cartão</option>${options}`;
@@ -506,15 +548,35 @@ function renderCreditCards() {
   $('#creditAvailableTotal').classList.toggle('is-negative', summary.available < 0);
   $('#creditCardOverview').innerHTML = items.length ? items.map(({ card, used, limit, available, invoice }) => {
     const percent = limit ? Math.min(100, Math.round(used / limit * 100)) : 0;
-    const theme = billCardTheme(card);
-    return `<article class="credit-card-row bill-card bill-card-${theme}"><div class="credit-card-visual"><span class="bill-card-art" aria-hidden="true"><i></i>${BILL_GROUP_ICONS.card}</span><span class="bill-card-copy"><strong>${escapeHtml(card.name)}</strong><span>Cartão de ${escapeHtml(ownerLabel(card.owner))}</span><em>Fatura atual ${money(invoice)}</em></span><strong class="credit-card-available ${available < 0 ? 'is-negative' : ''}">${limit ? money(available) : 'Defina o limite'}<small>${limit ? 'disponível' : ''}</small></strong></div><div class="credit-card-body"><div class="credit-progress" role="progressbar" aria-label="Limite usado do cartão ${escapeHtml(card.name)}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${percent}"><i style="width:${percent}%"></i></div><div class="credit-card-meta"><span>${money(used)} em uso</span><span>${limit ? `${money(limit)} de limite` : 'Limite não informado'}</span></div></div></article>`;
+    return `<article class="credit-card-row bill-card" ${cardColorStyle(card)}><div class="credit-card-visual"><span class="bill-card-art" aria-hidden="true"><i></i>${BILL_GROUP_ICONS.card}</span><span class="bill-card-copy"><strong>${escapeHtml(card.name)}</strong><span>Cartão de ${escapeHtml(ownerLabel(card.owner))}</span><em>Fatura atual ${money(invoice)}</em></span><strong class="credit-card-available ${available < 0 ? 'is-negative' : ''}">${limit ? money(available) : 'Defina o limite'}<small>${limit ? 'disponível' : ''}</small></strong></div><div class="credit-card-body"><div class="credit-progress" role="progressbar" aria-label="Limite usado do cartão ${escapeHtml(card.name)}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${percent}"><i style="width:${percent}%"></i></div><div class="credit-card-meta"><span>${money(used)} em uso</span><span>${limit ? `${money(limit)} de limite` : 'Limite não informado'}</span></div></div></article>`;
   }).join('') : '<div class="credit-empty"><strong>Cadastre o primeiro cartão</strong><span>O limite disponível e as faturas aparecerão aqui.</span></div>';
+}
+function updateCardColorPreview(color) {
+  const form = $('#cardForm'), picker = $('#cardColorPicker'), preview = $('#cardColorPreview'), hsl = hexToHsl(color);
+  preview.style.cssText = cardColorVariables(color);
+  picker.style.setProperty('--picker-hue', hsl.hue);
+  $('#cardColorPreviewName').textContent = form.elements.name.value.trim() || 'Seu cartão';
+  $('#cardColorPreviewOwner').textContent = `Cartão de ${ownerLabel(form.elements.owner.value)}`;
+}
+function updateCardColorPicker(value) {
+  const color = normalizeHexColor(value), hsl = hexToHsl(color);
+  $('#cardColorInput').value = color; $('#cardColorHex').value = color;
+  $('#cardHue').value = hsl.hue; $('#cardSaturation').value = hsl.saturation; $('#cardLightness').value = hsl.lightness;
+  $('#cardHueValue').textContent = `${hsl.hue}°`; $('#cardSaturationValue').textContent = `${hsl.saturation}%`; $('#cardLightnessValue').textContent = `${hsl.lightness}%`;
+  updateCardColorPreview(color);
+}
+function updateCardColorFromRanges() {
+  const hue = Number($('#cardHue').value), saturation = Number($('#cardSaturation').value), lightness = Number($('#cardLightness').value);
+  const color = hslToHex(hue, saturation, lightness);
+  $('#cardColorInput').value = color; $('#cardColorHex').value = color;
+  $('#cardHueValue').textContent = `${hue}°`; $('#cardSaturationValue').textContent = `${saturation}%`; $('#cardLightnessValue').textContent = `${lightness}%`;
+  updateCardColorPreview(color);
 }
 function openCards(card = null) {
   renderCards(); const form = $('#cardForm'); form.reset(); form.dataset.editId = card?.id || '';
   $('#saveCardButton').textContent = card ? 'Salvar cartão' : 'Adicionar cartão';
-  form.elements.theme.value = card ? billCardTheme(card) : 'blue';
   if (card) { form.elements.name.value = card.name; form.elements.owner.value = card.owner; setFormCurrency(form.elements.limit, card.limit); form.elements.closingDay.value = card.closingDay; form.elements.dueDay.value = card.dueDay; }
+  updateCardColorPicker(card ? cardColor(card) : DEFAULT_CARD_COLOR);
   openDialog('#cardsDialog');
 }
 function openInstallment() {
@@ -807,8 +869,7 @@ $('#cardForm').addEventListener('submit', event => {
   if (event.submitter?.value === 'cancel') return;
   event.preventDefault(); const formElement = event.currentTarget, form = new FormData(formElement), closingDay = Number(form.get('closingDay')), dueDay = Number(form.get('dueDay')), limit = parseCurrency(form.get('limit')), name = String(form.get('name')).trim();
   if (!name || !limit || limit < 0 || closingDay < 1 || closingDay > 31 || dueDay < 1 || dueDay > 31) { toast('Informe nome, limite, fechamento e vencimento válidos'); return; }
-  const theme = CARD_THEMES[form.get('theme')] ? form.get('theme') : 'blue';
-  const data = { name, owner: form.get('owner'), theme, limit, closingDay, dueDay }, editId = formElement.dataset.editId;
+  const data = { name, owner: form.get('owner'), color: normalizeHexColor(form.get('color')), limit, closingDay, dueDay }, editId = formElement.dataset.editId;
   if (editId) {
     const card = appConfig.cards.find(item => item.id === editId);
     if (card) {
@@ -821,6 +882,12 @@ $('#cardForm').addEventListener('submit', event => {
   else appConfig.cards.push({ id: uid(), ...data });
   saveConfig(); formElement.reset(); formElement.dataset.editId = ''; $('#saveCardButton').textContent = 'Adicionar cartão'; renderCards(); renderCreditCards(); toast(editId ? 'Cartão atualizado' : 'Cartão adicionado');
 });
+$('#cardColorInput').addEventListener('input', event => updateCardColorPicker(event.target.value));
+$('#cardColorHex').addEventListener('input', event => { if (/^#[0-9a-f]{6}$/i.test(event.target.value.trim())) updateCardColorPicker(event.target.value); });
+$('#cardColorHex').addEventListener('change', event => updateCardColorPicker(event.target.value));
+['#cardHue', '#cardSaturation', '#cardLightness'].forEach(selector => $(selector).addEventListener('input', updateCardColorFromRanges));
+$('#cardForm').elements.name.addEventListener('input', () => updateCardColorPreview($('#cardColorInput').value));
+$('#cardForm').elements.owner.addEventListener('change', () => updateCardColorPreview($('#cardColorInput').value));
 $('#cardList').addEventListener('click', event => {
   const editButton = event.target.closest('button[data-card-edit]');
   if (editButton) { const card = appConfig.cards.find(item => item.id === editButton.dataset.cardEdit); if (card) openCards(card); return; }
