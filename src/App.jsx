@@ -16,6 +16,7 @@ import {
   Pencil,
   PiggyBank,
   ReceiptText,
+  SlidersHorizontal,
   WalletCards,
 } from "lucide-react"
 
@@ -218,16 +219,10 @@ export default function App() {
         <Card className="panel records-panel" id="expensesPanel" aria-labelledby="transactionTitle" hidden>
           <div className="panel-heading transaction-heading">
             <div><h2 id="transactionTitle">Gastos e movimentações</h2><p id="transactionCount">Nenhum lançamento</p></div>
-            <Button className="button button-primary compact-action" id="openTransaction"><CirclePlus aria-hidden="true" /> Nova movimentação</Button>
-          </div>
-          <div className="record-filters" aria-label="Filtrar movimentações">
-            <label className="search-field"><span>Buscar</span><Input id="transactionSearch" type="search" placeholder="Descrição ou categoria" /></label>
-            <label><span>Tipo</span><NativeSelect id="transactionTypeFilter"><option value="">Todos</option><option value="expense">Saídas</option><option value="income">Entradas</option><option value="transfer">Transferências</option></NativeSelect></label>
-            <label><span>Responsável</span><NativeSelect id="transactionOwnerFilter"><option value="">Todos</option><option value="Você">Nicolas</option><option value="Namorada">Isabella</option><option value="Casal">Compartilhado</option></NativeSelect></label>
-            <label><span>Categoria</span><NativeSelect id="transactionCategoryFilter"><option value="">Todas</option></NativeSelect></label>
-            <label><span>Ordem</span><NativeSelect id="transactionSort"><option value="date-desc">Mais recentes</option><option value="date-asc">Mais antigas</option><option value="value-desc">Maior valor</option><option value="description">Descrição</option></NativeSelect></label>
-            <label><span>De</span><Input id="transactionDateFrom" type="date" /></label>
-            <label><span>Até</span><Input id="transactionDateTo" type="date" /></label>
+            <div className="heading-actions transaction-actions">
+              <Button className="button button-secondary compact-action filter-trigger" id="openTransactionFilters"><SlidersHorizontal aria-hidden="true" /> Filtros <span className="filter-count" id="transactionFilterBadge" hidden>0</span></Button>
+              <Button className="button button-primary compact-action" id="openTransaction"><CirclePlus aria-hidden="true" /> Nova movimentação</Button>
+            </div>
           </div>
           <div className="transaction-list" id="transactionList"></div>
         </Card>
@@ -274,6 +269,28 @@ export default function App() {
           </fieldset>
         </div>
         <Button className="button button-primary full" type="submit">Salvar movimentação</Button>
+      </form>
+    </Dialog>
+
+    <Dialog id="transactionFiltersDialog" className="dialog compact-dialog filter-dialog">
+      <form method="dialog" id="transactionFiltersForm">
+        <div className="dialog-head"><div><h2>Filtrar movimentações</h2><p>Encontre rapidamente o que entrou ou saiu.</p></div><Button className="icon-button subtle" value="cancel" aria-label="Fechar">×</Button></div>
+        <div className="record-filters filter-sheet-fields" aria-label="Filtros de movimentações">
+          <label className="search-field"><span>Buscar</span><Input id="transactionSearch" type="search" placeholder="Descrição ou categoria" /></label>
+          <label><span>Tipo</span><NativeSelect id="transactionTypeFilter"><option value="">Todos</option><option value="expense">Saídas</option><option value="income">Entradas</option><option value="transfer">Transferências</option></NativeSelect></label>
+          <label><span>Responsável</span><NativeSelect id="transactionOwnerFilter"><option value="">Todos</option><option value="Você">Nicolas</option><option value="Namorada">Isabella</option><option value="Casal">Compartilhado</option></NativeSelect></label>
+          <label><span>Categoria</span><NativeSelect id="transactionCategoryFilter"><option value="">Todas</option></NativeSelect></label>
+          <label><span>Ordem</span><NativeSelect id="transactionSort"><option value="date-desc">Mais recentes</option><option value="date-asc">Mais antigas</option><option value="value-desc">Maior valor</option><option value="description">Descrição</option></NativeSelect></label>
+          <div className="filter-date-row">
+            <label><span>De</span><Input id="transactionDateFrom" type="date" /></label>
+            <label><span>Até</span><Input id="transactionDateTo" type="date" /></label>
+          </div>
+        </div>
+        <p className="filter-preview" id="transactionFilterPreview">Todos os lançamentos serão mostrados.</p>
+        <div className="filter-dialog-actions">
+          <Button className="button button-secondary" type="button" id="clearTransactionFilters">Limpar</Button>
+          <Button className="button button-primary" type="submit">Ver resultados</Button>
+        </div>
       </form>
     </Dialog>
 

@@ -264,6 +264,24 @@ function getFilteredTransactions() {
   items.sort((a, b) => sort === 'date-asc' ? (a.date || '').localeCompare(b.date || '') : sort === 'value-desc' ? b.value - a.value : sort === 'description' ? (a.description || '').localeCompare(b.description || '', 'pt-BR') : (b.date || '').localeCompare(a.date || ''));
   return items;
 }
+function activeTransactionFilterCount() {
+  return [
+    ($('#transactionSearch')?.value || '').trim(),
+    $('#transactionTypeFilter')?.value,
+    $('#transactionOwnerFilter')?.value,
+    $('#transactionCategoryFilter')?.value,
+    $('#transactionDateFrom')?.value,
+    $('#transactionDateTo')?.value,
+    $('#transactionSort')?.value !== 'date-desc' ? $('#transactionSort')?.value : ''
+  ].filter(Boolean).length;
+}
+function updateTransactionFilterUi(resultCount) {
+  const count = activeTransactionFilterCount(), badge = $('#transactionFilterBadge'), trigger = $('#openTransactionFilters');
+  badge.textContent = count; badge.hidden = count === 0; trigger.classList.toggle('is-active', count > 0);
+  $('#transactionFilterPreview').textContent = count
+    ? `${resultCount} ${resultCount === 1 ? 'lançamento encontrado' : 'lançamentos encontrados'} com ${count} ${count === 1 ? 'filtro ativo' : 'filtros ativos'}.`
+    : 'Todos os lançamentos serão mostrados.';
+}
 function renderRecentTransactions() {
   const items = [...monthData.transactions].sort((a, b) => (b.date || '').localeCompare(a.date || '')).slice(0, 4);
   $('#recentTransactionList').innerHTML = items.length ? items.map(item => {
@@ -276,6 +294,7 @@ function renderRecentTransactions() {
 function renderTransactions() {
   const items = getFilteredTransactions(), filteredTotal = items.filter(item => item.type === 'expense').reduce((sum, item) => sum + item.value, 0);
   $('#transactionCount').textContent = `${items.length} ${items.length === 1 ? 'lançamento' : 'lançamentos'} · ${money(filteredTotal)} em saídas`;
+  updateTransactionFilterUi(items.length);
   $('#transactionList').innerHTML = items.length ? items.map(item => {
     const date = item.date ? new Intl.DateTimeFormat('pt-BR').format(new Date(`${item.date}T12:00:00`)) : '—';
     const transfer = item.type === 'transfer', owner = transfer ? `${ownerLabel(item.from)} → ${ownerLabel(item.to)}` : ownerLabel(item.paidBy);
@@ -556,6 +575,7 @@ function syncRoute() {
 
 $('#openTransaction').addEventListener('click', () => openTransaction());
 $('#openBill').addEventListener('click', () => openBill());
+$('#openTransactionFilters').addEventListener('click', () => { renderTransactions(); openDialog('#transactionFiltersDialog'); });
 $('#openCards').addEventListener('click', () => openCards());
 $('#openInstallment').addEventListener('click', openInstallment);
 $('#quickExpense')?.addEventListener('click', () => openTransaction());
@@ -567,6 +587,14 @@ $('#nextMonth').addEventListener('click', () => setMonth(1));
 $('#monthPicker').addEventListener('click', () => toast('Use as setas para navegar entre os meses'));
 $('#closeMonthButton').addEventListener('click', openCloseMonth);
 ['#transactionSearch', '#transactionTypeFilter', '#transactionOwnerFilter', '#transactionCategoryFilter', '#transactionSort', '#transactionDateFrom', '#transactionDateTo'].forEach(selector => $(selector).addEventListener('input', renderTransactions));
+$('#clearTransactionFilters').addEventListener('click', () => {
+  ['#transactionSearch', '#transactionTypeFilter', '#transactionOwnerFilter', '#transactionCategoryFilter', '#transactionDateFrom', '#transactionDateTo'].forEach(selector => { $(selector).value = ''; });
+  $('#transactionSort').value = 'date-desc'; renderTransactions();
+});
+$('#transactionFiltersForm').addEventListener('submit', event => {
+  if (event.submitter?.value === 'cancel') return;
+  renderTransactions();
+});
 
 $('#editPlan').addEventListener('click', () => {
   if (!ensureOpenMonth()) return;

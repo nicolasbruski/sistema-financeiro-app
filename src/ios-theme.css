@@ -468,6 +468,24 @@ label {
 
 .record-filters label { color: #4f5c70; font-size: 0.75rem; }
 
+.filter-dialog { overflow: hidden; }
+.filter-dialog form {
+  max-height: calc(100dvh - max(1rem, env(safe-area-inset-top)) - max(1rem, env(safe-area-inset-bottom)));
+  grid-template-rows: auto minmax(0, 1fr) auto auto;
+  overflow: hidden;
+  padding-bottom: max(1rem, env(safe-area-inset-bottom));
+}
+.filter-sheet-fields {
+  min-height: 0;
+  grid-template-columns: minmax(0, 1fr);
+  margin: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.filter-sheet-fields .search-field,
+.filter-sheet-fields .filter-date-row { grid-column: 1 / -1; }
+.transaction-actions { gap: 0.5rem; }
+
 /* Controls */
 .button,
 .compact-action,
@@ -735,6 +753,7 @@ input::placeholder { color: #637086; opacity: 1; }
   .hero-totals { grid-column: 1 / -1; grid-template-columns: repeat(4, minmax(0, 1fr)); }
 
   .record-filters { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .filter-sheet-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .dialog,
   #transactionDialog,
   #billDialog {
@@ -798,6 +817,7 @@ input::placeholder { color: #637086; opacity: 1; }
   .dashboard-secondary-grid { grid-template-columns: minmax(13rem, 0.75fr) minmax(17rem, 1fr) minmax(0, 1.55fr); }
   .dashboard-secondary-grid .recent-panel { grid-column: auto; }
   .record-filters { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .filter-sheet-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .records-panel .panel-heading { flex-direction: row; align-items: center; }
   .heading-actions { display: flex; width: auto; }
   .records-panel .compact-action { width: auto; }
