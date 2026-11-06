@@ -366,26 +366,28 @@ export default function App() {
     <Dialog id="cardsDialog" className="dialog compact-dialog">
       <form method="dialog" id="cardForm">
         <div className="dialog-head"><div><h2>Cartões</h2><p>Cadastre o limite para acompanhar quanto ainda pode ser usado.</p></div><Button className="icon-button subtle" value="cancel" aria-label="Fechar">×</Button></div>
-        <div className="card-list" id="cardList"></div>
-        <div className="form-row"><label>Nome<Input name="name" maxLength="30" placeholder="Ex.: Nubank" /></label><label>Titular<NativeSelect name="owner"><option value="Você">Nicolas</option><option value="Namorada">Isabella</option><option value="Casal">Compartilhado</option></NativeSelect></label></div>
-        <fieldset className="card-color-picker" id="cardColorPicker">
-          <legend>Personalizar cor</legend>
-          <p>Crie uma tonalidade própria. O texto se adapta automaticamente para continuar legível.</p>
-          <div className="card-color-workspace">
-            <div className="card-color-preview" id="cardColorPreview" aria-label="Prévia do cartão">
-              <span className="bill-card-art" aria-hidden="true"><i></i><CreditCard /></span>
-              <span><strong id="cardColorPreviewName">Seu cartão</strong><small id="cardColorPreviewOwner">Cartão de Nicolas</small></span>
+        <div className="dialog-fields card-dialog-fields">
+          <div className="card-list" id="cardList"></div>
+          <div className="form-row"><label>Nome<Input name="name" maxLength="30" placeholder="Ex.: Nubank" /></label><label>Titular<NativeSelect name="owner"><option value="Você">Nicolas</option><option value="Namorada">Isabella</option><option value="Casal">Compartilhado</option></NativeSelect></label></div>
+          <fieldset className="card-color-picker" id="cardColorPicker">
+            <legend>Personalizar cor</legend>
+            <p>Crie uma tonalidade própria. O texto se adapta automaticamente para continuar legível.</p>
+            <div className="card-color-workspace">
+              <div className="card-color-preview" id="cardColorPreview" aria-label="Prévia do cartão">
+                <span className="bill-card-art" aria-hidden="true"><i></i><CreditCard /></span>
+                <span><strong id="cardColorPreviewName">Seu cartão</strong><small id="cardColorPreviewOwner">Cartão de Nicolas</small></span>
+              </div>
+              <div className="card-color-controls">
+                <label className="card-color-source">Cor base<span><Input type="color" name="color" id="cardColorInput" defaultValue="#365eb9" aria-label="Escolher cor visualmente" /><Input type="text" id="cardColorHex" defaultValue="#365eb9" maxLength="7" inputMode="text" aria-label="Cor em hexadecimal" /></span></label>
+                <label className="card-color-range hue-range"><span>Matiz <output id="cardHueValue">221°</output></span><Input type="range" id="cardHue" min="0" max="359" defaultValue="221" /></label>
+                <label className="card-color-range saturation-range"><span>Saturação <output id="cardSaturationValue">54%</output></span><Input type="range" id="cardSaturation" min="0" max="100" defaultValue="54" /></label>
+                <label className="card-color-range lightness-range"><span>Luminosidade <output id="cardLightnessValue">47%</output></span><Input type="range" id="cardLightness" min="0" max="100" defaultValue="47" /></label>
+              </div>
             </div>
-            <div className="card-color-controls">
-              <label className="card-color-source">Cor base<span><Input type="color" name="color" id="cardColorInput" defaultValue="#365eb9" aria-label="Escolher cor visualmente" /><Input type="text" id="cardColorHex" defaultValue="#365eb9" maxLength="7" inputMode="text" aria-label="Cor em hexadecimal" /></span></label>
-              <label className="card-color-range hue-range"><span>Matiz <output id="cardHueValue">221°</output></span><Input type="range" id="cardHue" min="0" max="359" defaultValue="221" /></label>
-              <label className="card-color-range saturation-range"><span>Saturação <output id="cardSaturationValue">54%</output></span><Input type="range" id="cardSaturation" min="0" max="100" defaultValue="54" /></label>
-              <label className="card-color-range lightness-range"><span>Luminosidade <output id="cardLightnessValue">47%</output></span><Input type="range" id="cardLightness" min="0" max="100" defaultValue="47" /></label>
-            </div>
-          </div>
-        </fieldset>
-        <label>Limite do cartão<Input name="limit" inputMode="decimal" placeholder="0,00" /></label>
-        <div className="form-row"><label>Fecha dia<Input name="closingDay" type="number" min="1" max="31" /></label><label>Vence dia<Input name="dueDay" type="number" min="1" max="31" /></label></div>
+          </fieldset>
+          <label>Limite do cartão<Input name="limit" inputMode="decimal" placeholder="0,00" /></label>
+          <div className="form-row"><label>Fecha dia<Input name="closingDay" type="number" min="1" max="31" /></label><label>Vence dia<Input name="dueDay" type="number" min="1" max="31" /></label></div>
+        </div>
         <Button className="button button-primary full" type="submit" id="saveCardButton">Adicionar cartão</Button>
       </form>
     </Dialog>
