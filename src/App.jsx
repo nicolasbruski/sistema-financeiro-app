@@ -52,10 +52,9 @@ export default function App() {
       <div className="header-tools">
         <span className="sync-note"><i id="syncDot"></i><span id="syncText">Conectando ao armazenamento</span></span>
         <span className="github-user" id="githubUser" hidden></span>
-        <Button className="privacy-button" id="privacyButton" variant="ghost" size="sm" type="button" aria-label="Ocultar valores" aria-pressed="false" title="Ocultar valores">
+        <Button className="privacy-button" id="privacyButton" variant="ghost" size="sm" type="button" aria-pressed="false">
           <Eye className="privacy-icon-show" aria-hidden="true" />
           <EyeOff className="privacy-icon-hide" aria-hidden="true" hidden />
-          <span>Ocultar valores</span>
         </Button>
         <Button className="logout-button" id="logoutButton" variant="ghost" size="sm" hidden><LogOut aria-hidden="true" />Sair</Button>
       </div>

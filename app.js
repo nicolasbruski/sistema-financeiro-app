@@ -63,7 +63,7 @@ function saveConfig(schedule = true) {
 function updatePrivacyButton() {
   const button = $('#privacyButton');
   if (!button) return;
-  const label = valuesHidden ? 'Mostrar valores' : 'Ocultar valores';
+  const label = valuesHidden ? '' : '';
   button.setAttribute('aria-label', label);
   button.setAttribute('aria-pressed', String(valuesHidden));
   button.title = label;
