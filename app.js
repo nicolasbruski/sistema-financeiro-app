@@ -304,16 +304,24 @@ function colorLuminance(value) {
   const channels = [0, 2, 4].map(index => parseInt(hex.slice(index, index + 2), 16) / 255).map(channel => channel <= .04045 ? channel / 12.92 : ((channel + .055) / 1.055) ** 2.4);
   return .2126 * channels[0] + .7152 * channels[1] + .0722 * channels[2];
 }
+function colorWithBlackOverlay(value, opacity) {
+  const hex = normalizeHexColor(value).slice(1);
+  const channels = [0, 2, 4].map(index => Math.round(parseInt(hex.slice(index, index + 2), 16) * (1 - opacity)));
+  return `#${channels.map(channel => channel.toString(16).padStart(2, '0')).join('')}`;
+}
+function whiteTextOverlay(value) {
+  for (let opacity = 0; opacity <= .8; opacity += .02) {
+    if (1.05 / (colorLuminance(colorWithBlackOverlay(value, opacity)) + .05) >= 4.5) return Number(opacity.toFixed(2));
+  }
+  return .8;
+}
 function cardColorTokens(value) {
   const from = normalizeHexColor(value), hsl = hexToHsl(from);
-  const lightText = 1.05 / (colorLuminance(from) + .05) >= 4.5;
-  const text = lightText ? '#ffffff' : '#172033';
-  const targetLightness = lightText ? Math.max(8, hsl.lightness - 14) : Math.min(92, hsl.lightness + 10);
-  return { from, to: hslToHex(hsl.hue, hsl.saturation, targetLightness), text };
+  return { from, to: hslToHex(hsl.hue, hsl.saturation, Math.max(8, hsl.lightness - 14)), text: '#ffffff', overlay: whiteTextOverlay(from) };
 }
 function cardColorVariables(value) {
   const colors = cardColorTokens(value);
-  return `--bill-card-from:${colors.from};--bill-card-to:${colors.to};--bill-card-text:${colors.text}`;
+  return `--bill-card-from:${colors.from};--bill-card-to:${colors.to};--bill-card-text:${colors.text};--bill-card-overlay:${colors.overlay}`;
 }
 function cardColorStyle(card) {
   return `style="${cardColorVariables(cardColor(card))}"`;

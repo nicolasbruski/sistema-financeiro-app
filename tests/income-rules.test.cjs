@@ -85,8 +85,10 @@ const repairedCardColor = context.loadConfigFrom({ cards: [{ id: 'card-4', name:
 assert.match(repairedCardColor.cards[0].color, /^#[0-9a-f]{6}$/);
 assert.equal(context.hslToHex(0, 100, 50), '#ff0000');
 assert.deepEqual({ ...context.hexToHsl('#ff0000') }, { hue: 0, saturation: 100, lightness: 50 });
-assert.equal(context.cardColorTokens('#ffffff').text, '#172033');
+assert.equal(context.cardColorTokens('#ffffff').text, '#ffffff');
+assert.ok(context.cardColorTokens('#ffffff').overlay > 0);
 assert.equal(context.cardColorTokens('#000000').text, '#ffffff');
+assert.equal(context.cardColorTokens('#000000').overlay, 0);
 
 const repairedSavingsConfig = context.loadConfigFrom({
   savedFunds: { bank: -100, cash: 'valor inválido' }

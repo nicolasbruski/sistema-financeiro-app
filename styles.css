@@ -159,9 +159,9 @@ h2 { margin: 0; font-size: 1.05rem; letter-spacing: -0.02em; }
 .goal-row strong { font-size: 0.8rem; color: var(--green); }
 .bills-heading { align-items: center; }
 .bill-list { display: grid; gap: 0.875rem; }
-.bill-card { --bill-card-from: #315ea8; --bill-card-to: #24436f; --bill-card-text: #fff; overflow: hidden; min-width: 0; border: 1px solid color-mix(in srgb, var(--bill-card-from) 25%, var(--line)); border-radius: 1rem; background: var(--paper); box-shadow: 0 0.35rem 1rem rgba(23, 32, 51, 0.08); transition: box-shadow 180ms ease, transform 180ms ease; }
+.bill-card { --bill-card-from: #315ea8; --bill-card-to: #24436f; --bill-card-text: #fff; --bill-card-overlay: 0; overflow: hidden; min-width: 0; border: 1px solid color-mix(in srgb, var(--bill-card-from) 25%, var(--line)); border-radius: 1rem; background: var(--paper); box-shadow: 0 0.35rem 1rem rgba(23, 32, 51, 0.08); transition: box-shadow 180ms ease, transform 180ms ease; }
 .bill-card:not([open]):hover { transform: translateY(-2px); box-shadow: 0 0.65rem 1.4rem rgba(23, 32, 51, 0.13); }
-.bill-card-summary, .credit-card-visual { position: relative; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 0.75rem; min-height: 7.25rem; overflow: hidden; padding: 1rem; background: linear-gradient(135deg, var(--bill-card-from), var(--bill-card-to)); color: var(--bill-card-text); isolation: isolate; }
+.bill-card-summary, .credit-card-visual { position: relative; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 0.75rem; min-height: 7.25rem; overflow: hidden; padding: 1rem; background: linear-gradient(rgb(0 0 0 / var(--bill-card-overlay)), rgb(0 0 0 / var(--bill-card-overlay))), linear-gradient(135deg, var(--bill-card-from), var(--bill-card-to)); color: var(--bill-card-text); isolation: isolate; }
 .bill-card-summary { cursor: pointer; list-style: none; }
 .bill-card-summary::-webkit-details-marker { display: none; }
 .bill-card-summary::before, .bill-card-summary::after, .credit-card-visual::before, .credit-card-visual::after { position: absolute; z-index: -1; border: 1px solid color-mix(in srgb, var(--bill-card-text) 18%, transparent); border-radius: 50%; content: ""; pointer-events: none; }
@@ -292,7 +292,7 @@ h2 { margin: 0; font-size: 1.05rem; letter-spacing: -0.02em; }
 .card-color-picker legend { padding: 0; color: var(--ink); font-size: 0.82rem; font-weight: 700; }
 .card-color-picker > p { margin: 0.2rem 0 0.75rem; color: var(--ink-soft); font-size: 0.75rem; }
 .card-color-workspace { display: grid; gap: 0.85rem; }
-.card-color-preview { position: relative; display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: end; gap: 0.75rem; min-height: 8rem; overflow: hidden; border-radius: 0.9rem; padding: 1rem; background: linear-gradient(135deg, var(--bill-card-from), var(--bill-card-to)); color: var(--bill-card-text); isolation: isolate; }
+.card-color-preview { position: relative; display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: end; gap: 0.75rem; min-height: 8rem; overflow: hidden; border-radius: 0.9rem; padding: 1rem; background: linear-gradient(rgb(0 0 0 / var(--bill-card-overlay)), rgb(0 0 0 / var(--bill-card-overlay))), linear-gradient(135deg, var(--bill-card-from), var(--bill-card-to)); color: var(--bill-card-text); isolation: isolate; }
 .card-color-preview::after { position: absolute; z-index: -1; top: -3rem; right: -2rem; width: 8rem; height: 8rem; border: 1px solid color-mix(in srgb, var(--bill-card-text) 18%, transparent); border-radius: 50%; content: ""; }
 .card-color-preview > span:last-child { min-width: 0; }
 .card-color-preview strong, .card-color-preview small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
