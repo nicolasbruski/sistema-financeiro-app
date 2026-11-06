@@ -47,7 +47,7 @@ export default function App() {
       <nav className="dashboard-tabs" aria-label="Áreas do dashboard">
         <a className="nav-item is-active" href="#inicio" data-view="inicio"><LayoutDashboard aria-hidden="true" />Dashboard</a>
         <a className="nav-item" href="#gastos" data-view="gastos"><ReceiptText aria-hidden="true" />Gastos</a>
-        <a className="nav-item" href="#contas" data-view="contas"><CreditCard aria-hidden="true" />Dívidas</a>
+        <a className="nav-item" href="#contas" data-view="contas"><CreditCard aria-hidden="true" />Contas</a>
       </nav>
       <div className="header-tools">
         <span className="sync-note"><i id="syncDot"></i><span id="syncText">Conectando ao armazenamento</span></span>
@@ -240,7 +240,7 @@ export default function App() {
     <nav className="mobile-nav" aria-label="Navegação móvel">
       <a className="is-active" href="#inicio" data-view="inicio"><LayoutDashboard aria-hidden="true" />Início</a>
       <a href="#gastos" data-view="lancamentos"><WalletCards aria-hidden="true" />Gastos</a>
-      <a href="#contas" data-view="contas"><CreditCard aria-hidden="true" />Dívidas</a>
+      <a href="#contas" data-view="contas"><CreditCard aria-hidden="true" />Contas</a>
     </nav>
 
     <Dialog id="transactionDialog" className="dialog">

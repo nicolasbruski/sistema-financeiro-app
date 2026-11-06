@@ -159,15 +159,38 @@ h2 { margin: 0; font-size: 1.05rem; letter-spacing: -0.02em; }
 .goal-row strong { font-size: 0.8rem; color: var(--green); }
 .bills-heading { align-items: center; }
 .bill-list { display: grid; gap: 0.875rem; }
-.bill-group { overflow: hidden; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--paper); }
-.bill-group-heading { display: grid; gap: 0.65rem; padding: 0.875rem 1rem; background: var(--mist); }
-.bill-group-heading > div:first-child { min-width: 0; }
-.bill-group-heading strong, .bill-group-heading span { display: block; }
-.bill-group-heading > div:first-child > strong { overflow: hidden; font-size: 0.875rem; text-overflow: ellipsis; white-space: nowrap; }
-.bill-group-heading span { margin-top: 0.1rem; color: var(--ink-soft); font-size: 0.7rem; }
-.bill-group-total { text-align: left; }
-.bill-group-total strong { font-size: 0.82rem; font-variant-numeric: tabular-nums; }
-.bill-group-items { padding: 0 1rem; }
+.bill-card { --bill-card-from: #315ea8; --bill-card-to: #24436f; overflow: hidden; min-width: 0; border: 1px solid color-mix(in srgb, var(--bill-card-from) 25%, var(--line)); border-radius: 1rem; background: var(--paper); box-shadow: 0 0.35rem 1rem rgba(23, 32, 51, 0.08); transition: box-shadow 180ms ease, transform 180ms ease; }
+.bill-card-blue { --bill-card-from: #4169c9; --bill-card-to: #294d9a; }
+.bill-card-teal { --bill-card-from: #258a82; --bill-card-to: #126b65; }
+.bill-card-plum { --bill-card-from: #8060ad; --bill-card-to: #5e4388; }
+.bill-card-coral { --bill-card-from: #c65f51; --bill-card-to: #994338; }
+.bill-card-navy { --bill-card-from: #3b577c; --bill-card-to: #243b5b; }
+.bill-card-unlinked { --bill-card-from: #718096; --bill-card-to: #536174; }
+.bill-card:not([open]):hover { transform: translateY(-2px); box-shadow: 0 0.65rem 1.4rem rgba(23, 32, 51, 0.13); }
+.bill-card-summary { position: relative; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 0.75rem; min-height: 7.25rem; overflow: hidden; padding: 1rem; background: linear-gradient(135deg, var(--bill-card-from), var(--bill-card-to)); color: white; cursor: pointer; list-style: none; isolation: isolate; }
+.bill-card-summary::-webkit-details-marker { display: none; }
+.bill-card-summary::before, .bill-card-summary::after { position: absolute; z-index: -1; border: 1px solid rgba(255,255,255,.13); border-radius: 50%; content: ""; pointer-events: none; }
+.bill-card-summary::before { top: -4.75rem; right: -2.5rem; width: 10rem; height: 10rem; }
+.bill-card-summary::after { right: 1.25rem; bottom: -4.5rem; width: 7rem; height: 7rem; }
+.bill-card-art { position: relative; display: grid; width: 3rem; height: 3rem; flex: 0 0 3rem; place-items: center; border: 1px solid rgba(255,255,255,.22); border-radius: 0.8rem; background: rgba(255,255,255,.13); backdrop-filter: blur(0.4rem); }
+.bill-card-art svg { width: 1.55rem; height: 1.55rem; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.bill-card-art i { position: absolute; top: 0.25rem; left: 0.25rem; width: 0.75rem; height: 0.55rem; border-radius: 0.16rem; background: linear-gradient(135deg, #f4d58a, #c9a653); box-shadow: inset 0 0 0 1px rgba(81,59,13,.18); }
+.bill-card-copy { min-width: 0; }
+.bill-card-copy > strong, .bill-card-copy > span, .bill-card-copy > em { display: block; }
+.bill-card-copy > strong { overflow: hidden; font-size: 0.95rem; letter-spacing: -0.015em; text-overflow: ellipsis; white-space: nowrap; }
+.bill-card-copy > span { margin-top: 0.1rem; color: rgba(255,255,255,.78); font-size: 0.7rem; }
+.bill-card-copy > em { margin-top: 0.6rem; color: rgba(255,255,255,.92); font-size: 0.68rem; font-style: normal; font-weight: 700; }
+.bill-card-action-open { display: none; }
+.bill-card[open] .bill-card-action-open { display: inline; }
+.bill-card[open] .bill-card-action-closed { display: none; }
+.bill-group-total { min-width: 0; text-align: right; }
+.bill-group-total strong, .bill-group-total span { display: block; }
+.bill-group-total strong { max-width: 7rem; overflow: hidden; font-size: 0.85rem; font-variant-numeric: tabular-nums; text-overflow: ellipsis; white-space: nowrap; }
+.bill-group-total span { margin-top: 0.1rem; color: rgba(255,255,255,.72); font-size: 0.65rem; }
+.bill-card-chevron { grid-column: 1 / -1; display: grid; width: 1.75rem; height: 1.25rem; place-items: center; justify-self: center; margin-bottom: -0.55rem; color: rgba(255,255,255,.82); transition: transform 180ms ease; }
+.bill-card-chevron svg { width: 1.1rem; height: 1.1rem; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.bill-card[open] .bill-card-chevron { transform: rotate(180deg); }
+.bill-group-items { padding: 0 1rem; background: var(--paper); }
 .bill-item { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 0.75rem; min-height: 4.5rem; padding: 0.55rem 0; border-top: 1px solid #edf0f3; }
 .bill-item:first-child { border-top: 0; }
 .bill-check { position: relative; display: grid; place-items: center; width: 1.5rem; height: 1.5rem; }
@@ -276,8 +299,6 @@ h2 { margin: 0; font-size: 1.05rem; letter-spacing: -0.02em; }
 
 @media (min-width: 30rem) {
   .form-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .bill-group-heading { grid-template-columns: minmax(0, 1fr) auto; align-items: center; }
-  .bill-group-total { text-align: right; }
 }
 
 @media (min-width: 48rem) {
@@ -306,6 +327,9 @@ h2 { margin: 0; font-size: 1.05rem; letter-spacing: -0.02em; }
   .dashboard-grid { grid-template-columns: 1.15fr .85fr; }
   .records-panel .panel-heading { align-items: center; flex-direction: row; }
   .records-panel .compact-action { width: auto; }
+  .bill-list { grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; }
+  .bill-card[open], .bill-empty { grid-column: 1 / -1; }
+  .bill-card-summary { min-height: 8rem; padding: 1.1rem 1.2rem; }
   .heading-actions { display: flex; width: auto; flex-wrap: wrap; justify-content: flex-end; }
   .record-filters { grid-template-columns: minmax(12rem, 1.5fr) repeat(3, minmax(8rem, 1fr)); }
   .record-filters .search-field { grid-column: span 2; }

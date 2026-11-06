@@ -9,6 +9,11 @@ const CASH_FLOW_ICONS = {
   expense: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="8" width="17" height="12" rx="2"></rect><text x="12" y="17" text-anchor="middle">$</text><path d="M12 8V2M9.5 4.5 12 2l2.5 2.5"></path></svg>',
   transfer: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 8h13M15 5l3 3-3 3M19 16H6M9 13l-3 3 3 3"></path></svg>'
 };
+const BILL_GROUP_ICONS = {
+  card: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2.5"></rect><path d="M3 10h18M7 15h3"></path></svg>',
+  unlinked: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2V3Z"></path><path d="M9 8h6M9 12h4"></path></svg>',
+  chevron: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m7 10 5 5 5-5"></path></svg>'
+};
 const OWNERS = ['Você', 'Namorada', 'Casal'];
 const OWNER_LABELS = { 'Você': 'Nicolas', Namorada: 'Isabella', Casal: 'Compartilhado' };
 const CONFIG_KEY = 'nosso-caixa:config';
@@ -258,6 +263,13 @@ function groupBillsByCard(bills, config = appConfig) {
       || first.card.name.localeCompare(second.card.name, 'pt-BR');
   });
 }
+function billCardTheme(card) {
+  if (!card.id) return 'unlinked';
+  const themes = ['blue', 'teal', 'plum', 'coral', 'navy'];
+  const identity = `${card.id}:${card.name}`;
+  const hash = [...identity].reduce((total, character) => ((total * 31) + character.charCodeAt(0)) >>> 0, 0);
+  return themes[hash % themes.length];
+}
 function settlementBalance(data = monthData) {
   let net = 0;
   data.transactions.forEach(transaction => {
@@ -369,6 +381,7 @@ function renderSavedFunds() {
   $('#savedFundsCash').textContent = money(cash);
 }
 function renderBills() {
+  const openGroups = new Set([...$('#billList').querySelectorAll('details[open][data-bill-group]')].map(item => item.dataset.billGroup));
   const sorted = [...monthData.bills].sort((a, b) => Number(a.paid) - Number(b.paid) || a.dueDay - b.dueDay), pending = sorted.filter(bill => !bill.paid);
   $('#billsSummary').textContent = sorted.length ? `${pending.length} ${pending.length === 1 ? 'pendente' : 'pendentes'} · ${money(pendingBillsTotal())}` : 'Nenhuma conta cadastrada';
   $('#billList').innerHTML = sorted.length ? groupBillsByCard(sorted).map(group => {
@@ -378,11 +391,14 @@ function renderBills() {
     const cardCaption = group.card.id
       ? `${group.card.missing ? 'Cartão removido' : 'Titular do cartão'}: ${owner || 'não identificado'}`
       : 'Dívidas que não estão vinculadas a um cartão';
+    const theme = billCardTheme(group.card);
+    const icon = group.card.id ? BILL_GROUP_ICONS.card : BILL_GROUP_ICONS.unlinked;
+    const open = openGroups.has(group.card.key) ? ' open' : '';
     const items = group.bills.map(bill => {
       const tags = [bill.recurrenceId ? 'Recorrente' : '', bill.installmentPlanId ? `Parcela ${bill.installmentNumber} de ${bill.installmentCount}` : '', bill.carriedFrom ? `Pendente de ${bill.carriedFrom}` : ''].filter(Boolean);
       return `<article class="bill-item ${bill.paid ? 'is-paid' : ''}"><label class="bill-check" aria-label="Marcar ${escapeHtml(bill.description)} como ${bill.paid ? 'pendente' : 'paga'}"><input type="checkbox" data-bill-id="${bill.id}" ${bill.paid ? 'checked' : ''} ${monthData.status === 'closed' ? 'disabled' : ''}><span aria-hidden="true">✓</span></label><div class="bill-main"><strong>${escapeHtml(bill.description)}</strong><span><i class="owner-pill ${ownerClass(bill.paidBy)}">Dívida de ${escapeHtml(ownerLabel(bill.paidBy))}</i> · Vence dia ${bill.dueDay} · ${escapeHtml(bill.category)}${tags.length ? ` · ${escapeHtml(tags.join(' · '))}` : ''}</span></div><div class="bill-value"><strong>${money(bill.value)}</strong><span>${bill.paid ? 'Paga' : 'Pendente'}</span></div><div class="row-actions"><button type="button" data-bill-action="edit" data-id="${bill.id}">Editar</button><button type="button" data-bill-action="delete" data-id="${bill.id}">Excluir</button></div></article>`;
     }).join('');
-    return `<section class="bill-group" aria-label="${escapeHtml(group.card.name)}"><div class="bill-group-heading"><div><strong>${escapeHtml(group.card.name)}</strong><span>${escapeHtml(cardCaption)}</span></div><div class="bill-group-total"><strong>${money(groupTotal)}</strong><span>${groupPending.length} ${groupPending.length === 1 ? 'pendente' : 'pendentes'}</span></div></div><div class="bill-group-items">${items}</div></section>`;
+    return `<details class="bill-card bill-card-${theme}" data-bill-group="${escapeHtml(group.card.key)}"${open}><summary class="bill-card-summary"><span class="bill-card-art" aria-hidden="true"><i></i>${icon}</span><span class="bill-card-copy"><strong>${escapeHtml(group.card.name)}</strong><span>${escapeHtml(cardCaption)}</span><em><span class="bill-card-action-closed">Ver contas vinculadas</span><span class="bill-card-action-open">Ocultar contas</span></em></span><span class="bill-group-total"><strong>${money(groupTotal)}</strong><span>${groupPending.length} ${groupPending.length === 1 ? 'pendente' : 'pendentes'}</span></span><span class="bill-card-chevron" aria-hidden="true">${BILL_GROUP_ICONS.chevron}</span></summary><div class="bill-group-items">${items}</div></details>`;
   }).join('') : '<div class="bill-empty"><strong>Cadastre faturas e contas fixas.</strong><br>Elas entram no valor comprometido e na previsão do mês.</div>';
 }
 function renderAlerts(projected) {
