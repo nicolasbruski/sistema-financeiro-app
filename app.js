@@ -501,7 +501,7 @@ function renderCreditCards() {
   $('#creditAvailableTotal').classList.toggle('is-negative', summary.available < 0);
   $('#creditCardOverview').innerHTML = items.length ? items.map(({ card, used, limit, available, invoice }) => {
     const percent = limit ? Math.min(100, Math.round(used / limit * 100)) : 0;
-    return `<article class="credit-card-row"><div class="credit-card-main"><div><strong>${escapeHtml(card.name)}</strong><span>${ownerLabel(card.owner)} · fatura atual ${money(invoice)}</span></div><strong class="credit-card-available ${available < 0 ? 'is-negative' : ''}">${limit ? money(available) : 'Defina o limite'}<small>${limit ? 'disponível' : ''}</small></strong></div><div class="credit-progress" role="progressbar" aria-label="Limite usado do cartão ${escapeHtml(card.name)}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${percent}"><i style="width:${percent}%"></i></div><div class="credit-card-meta"><span>${money(used)} em uso</span><span>${limit ? `${money(limit)} de limite` : 'Limite não informado'}</span></div>${invoice ? `<button class="credit-card-pay" type="button" data-card-pay="${card.id}" ${monthData.status === 'closed' ? 'disabled' : ''}>Pagar fatura de ${money(invoice)}</button>` : ''}</article>`;
+    return `<article class="credit-card-row"><div class="credit-card-main"><div><strong>${escapeHtml(card.name)}</strong><span>${ownerLabel(card.owner)} · fatura atual ${money(invoice)}</span></div><strong class="credit-card-available ${available < 0 ? 'is-negative' : ''}">${limit ? money(available) : 'Defina o limite'}<small>${limit ? 'disponível' : ''}</small></strong></div><div class="credit-progress" role="progressbar" aria-label="Limite usado do cartão ${escapeHtml(card.name)}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${percent}"><i style="width:${percent}%"></i></div><div class="credit-card-meta"><span>${money(used)} em uso</span><span>${limit ? `${money(limit)} de limite` : 'Limite não informado'}</span></div></article>`;
   }).join('') : '<div class="credit-empty"><strong>Cadastre o primeiro cartão</strong><span>O limite disponível e as faturas aparecerão aqui.</span></div>';
 }
 function openCards(card = null) {
@@ -820,19 +820,6 @@ $('#cardList').addEventListener('click', event => {
   if (!card || !confirm(`Excluir o cartão “${card.name}”? As parcelas existentes serão mantidas.`)) return;
   appConfig.cards = appConfig.cards.filter(item => item.id !== card.id); saveConfig(); renderCards(); renderCreditCards();
 });
-$('#creditCardOverview').addEventListener('click', event => {
-  const button = event.target.closest('button[data-card-pay]'); if (!button || !ensureOpenMonth()) return;
-  const card = appConfig.cards.find(item => item.id === button.dataset.cardPay);
-  const bills = monthData.bills.filter(bill => !bill.paid && billBelongsToCard(bill, button.dataset.cardPay));
-  const invoice = bills.reduce((sum, bill) => sum + bill.value, 0);
-  if (!card || !invoice || !confirm(`Pagar a fatura de ${card.name} no valor de ${money(invoice)}?`)) return;
-  bills.forEach(bill => {
-    bill.paid = true; bill.transactionId = uid();
-    monthData.transactions.push({ id: bill.transactionId, type: 'expense', description: bill.description, value: bill.value, date: `${monthKey()}-${String(Math.min(bill.dueDay, new Date(cursor.getFullYear(), cursor.getMonth() + 1, 0).getDate())).padStart(2, '0')}`, category: bill.category, paidBy: bill.paidBy, scope: bill.scope || 'individual', splitYou: bill.splitYou ?? 50, billId: bill.id });
-  });
-  saveLocal(false); render(); toast(`Fatura de ${card.name} paga`);
-});
-
 $('#installmentForm').addEventListener('submit', event => {
   if (event.submitter?.value === 'cancel') return;
   event.preventDefault(); const form = new FormData(event.currentTarget), card = appConfig.cards.find(item => item.id === form.get('cardId')), totalValue = parseCurrency(form.get('value')), installments = Number(form.get('installments')), purchaseDate = new Date(`${form.get('purchaseDate')}T12:00:00`), description = String(form.get('description') || '').trim();
