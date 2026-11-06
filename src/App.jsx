@@ -336,6 +336,7 @@ export default function App() {
           <label>Descrição<Input name="description" maxLength="60" placeholder="Ex.: Fatura do cartão" /></label>
           <div className="form-row"><label>Valor da parcela<Input name="value" inputMode="decimal" placeholder="0,00" /></label><label>Vencimento<Input name="dueDay" type="number" min="1" max="31" placeholder="10" /></label></div>
           <label>Quantidade de parcelas<Input name="installments" type="number" min="1" max="60" defaultValue="1" aria-describedby="billInstallmentsHelp" /><small id="billInstallmentsHelp">Use 1 para uma conta sem parcelas. As demais vencem nos meses seguintes.</small></label>
+          <label>Cartão<NativeSelect name="cardId" id="billCardSelect"><option value="">Sem cartão</option></NativeSelect><small>Vincule a dívida para ela aparecer agrupada no cartão correto.</small></label>
           <label>Categoria<NativeSelect name="category" id="billCategorySelect"></NativeSelect></label>
           <fieldset className="sharing-fields">
             <legend>Para quem é esta conta?</legend>
@@ -346,8 +347,8 @@ export default function App() {
           </fieldset>
           <label className="check-row"><Input name="recurring" type="checkbox" /><span><strong>Repetir todos os meses</strong><small>A conta será criada automaticamente nos próximos meses.</small></span></label>
           <fieldset className="owner-picker" aria-describedby="billOwnerHelp">
-            <legend>De qual saldo sairá?</legend>
-            <p id="billOwnerHelp">Ao marcar a conta como paga, o valor será descontado deste saldo.</p>
+            <legend>De quem é a dívida?</legend>
+            <p id="billOwnerHelp">Pode ser diferente do titular do cartão. Ao pagar, o valor sairá deste saldo.</p>
             <div className="owner-options">
               <Input type="radio" name="paidBy" id="billOwnerYou" value="Você" defaultChecked />
               <label htmlFor="billOwnerYou"><strong>Nicolas</strong><span>Do saldo de Nicolas</span></label>
@@ -380,6 +381,18 @@ export default function App() {
         <label>Descrição<Input name="description" maxLength="60" placeholder="Ex.: Notebook" /></label>
         <div className="form-row"><label>Valor total<Input name="value" inputMode="decimal" placeholder="0,00" /></label><label>Parcelas<Input name="installments" type="number" min="1" max="60" defaultValue="1" /><small>Use 1 para compra à vista no cartão.</small></label></div>
         <div className="form-row"><label>Data da compra<Input name="purchaseDate" type="date" /></label><label>Categoria<NativeSelect name="category" id="installmentCategorySelect"></NativeSelect></label></div>
+        <fieldset className="owner-picker" aria-describedby="installmentOwnerHelp">
+          <legend>De quem é a dívida?</legend>
+          <p id="installmentOwnerHelp">O titular do cartão aparece acima, mas a dívida pode pertencer a outra pessoa.</p>
+          <div className="owner-options">
+            <Input type="radio" name="paidBy" id="installmentOwnerYou" value="Você" defaultChecked />
+            <label htmlFor="installmentOwnerYou"><strong>Nicolas</strong><span>Dívida de Nicolas</span></label>
+            <Input type="radio" name="paidBy" id="installmentOwnerPartner" value="Namorada" />
+            <label htmlFor="installmentOwnerPartner"><strong>Isabella</strong><span>Dívida de Isabella</span></label>
+            <Input type="radio" name="paidBy" id="installmentOwnerShared" value="Casal" />
+            <label htmlFor="installmentOwnerShared"><strong>Nossa</strong><span>Dívida compartilhada</span></label>
+          </div>
+        </fieldset>
         <div className="type-toggle">
           <Input type="radio" name="scope" id="installmentIndividual" value="individual" defaultChecked /><label htmlFor="installmentIndividual">Individual</label>
           <Input type="radio" name="scope" id="installmentShared" value="shared" /><label htmlFor="installmentShared">Compartilhada</label>

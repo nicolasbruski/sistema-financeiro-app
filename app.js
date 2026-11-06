@@ -139,7 +139,8 @@ function materializeScheduledItems() {
     if (!active || monthData.bills.some(bill => bill.recurrenceId === template.id && bill.generatedMonth === key)) return;
     monthData.bills.push({ id: `rec-${template.id}-${key}`, description: template.description, value: template.value, dueDay: template.dueDay,
       category: template.category, paidBy: template.paidBy, scope: template.scope || 'individual', splitYou: template.splitYou ?? 50,
-      paid: false, transactionId: null, recurrenceId: template.id, generatedMonth: key });
+      paid: false, transactionId: null, recurrenceId: template.id, generatedMonth: key,
+      cardId: template.cardId || null, cardName: template.cardName || '', cardOwner: template.cardOwner || '' });
     changed = true;
   });
   appConfig.installmentPlans.forEach(plan => {
@@ -149,7 +150,8 @@ function materializeScheduledItems() {
     const value = plan.installmentValue ? base : (index === plan.installments - 1 ? plan.totalValue - base * (plan.installments - 1) : base);
     monthData.bills.push({ id: `inst-${plan.id}-${index + 1}`, description: plan.installments > 1 ? `${plan.description} (${index + 1}/${plan.installments})` : plan.description, value,
       dueDay: plan.dueDay, category: plan.category, paidBy: plan.paidBy, scope: plan.scope || 'individual', splitYou: plan.splitYou ?? 50,
-      paid: false, transactionId: null, installmentPlanId: plan.id, installmentNumber: index + 1, installmentCount: plan.installments, cardId: plan.cardId, cardName: plan.cardName });
+      paid: false, transactionId: null, installmentPlanId: plan.id, installmentNumber: index + 1, installmentCount: plan.installments,
+      cardId: plan.cardId || null, cardName: plan.cardName || '', cardOwner: plan.cardOwner || '' });
     changed = true;
   });
   return changed;
@@ -227,6 +229,34 @@ function billBelongsToCard(bill, cardId) {
 }
 function currentCardInvoice(cardId, data = monthData) {
   return data.bills.filter(bill => !bill.paid && billBelongsToCard(bill, cardId)).reduce((sum, bill) => sum + bill.value, 0);
+}
+function billCardDetails(bill, config = appConfig) {
+  const plan = config.installmentPlans?.find(item => item.id === bill.installmentPlanId);
+  const cardId = bill.cardId || plan?.cardId || null;
+  if (!cardId) return { key: 'no-card', id: null, name: 'Sem cartão', owner: null, missing: false };
+  const card = config.cards?.find(item => item.id === cardId);
+  return {
+    key: `card:${cardId}`,
+    id: cardId,
+    name: card?.name || bill.cardName || plan?.cardName || 'Cartão removido',
+    owner: card?.owner || bill.cardOwner || plan?.cardOwner || plan?.paidBy || null,
+    missing: !card
+  };
+}
+function groupBillsByCard(bills, config = appConfig) {
+  const groups = new Map();
+  bills.forEach(bill => {
+    const card = billCardDetails(bill, config);
+    if (!groups.has(card.key)) groups.set(card.key, { card, bills: [] });
+    groups.get(card.key).bills.push(bill);
+  });
+  const cardOrder = new Map((config.cards || []).map((card, index) => [card.id, index]));
+  return [...groups.values()].sort((first, second) => {
+    if (!first.card.id) return 1;
+    if (!second.card.id) return -1;
+    return (cardOrder.get(first.card.id) ?? Number.MAX_SAFE_INTEGER) - (cardOrder.get(second.card.id) ?? Number.MAX_SAFE_INTEGER)
+      || first.card.name.localeCompare(second.card.name, 'pt-BR');
+  });
 }
 function settlementBalance(data = monthData) {
   let net = 0;
@@ -341,9 +371,18 @@ function renderSavedFunds() {
 function renderBills() {
   const sorted = [...monthData.bills].sort((a, b) => Number(a.paid) - Number(b.paid) || a.dueDay - b.dueDay), pending = sorted.filter(bill => !bill.paid);
   $('#billsSummary').textContent = sorted.length ? `${pending.length} ${pending.length === 1 ? 'pendente' : 'pendentes'} · ${money(pendingBillsTotal())}` : 'Nenhuma conta cadastrada';
-  $('#billList').innerHTML = sorted.length ? sorted.map(bill => {
-    const tags = [bill.recurrenceId ? 'Recorrente' : '', bill.installmentPlanId ? `Parcela ${bill.installmentNumber} de ${bill.installmentCount}` : '', bill.cardName || '', bill.carriedFrom ? `Pendente de ${bill.carriedFrom}` : ''].filter(Boolean);
-    return `<article class="bill-item ${bill.paid ? 'is-paid' : ''}"><label class="bill-check" aria-label="Marcar ${escapeHtml(bill.description)} como ${bill.paid ? 'pendente' : 'paga'}"><input type="checkbox" data-bill-id="${bill.id}" ${bill.paid ? 'checked' : ''} ${monthData.status === 'closed' ? 'disabled' : ''}><span aria-hidden="true">✓</span></label><div class="bill-main"><strong>${escapeHtml(bill.description)}</strong><span>Vence dia ${bill.dueDay} · ${escapeHtml(bill.category)} · ${ownerLabel(bill.paidBy)}${tags.length ? ` · ${escapeHtml(tags.join(' · '))}` : ''}</span></div><div class="bill-value"><strong>${money(bill.value)}</strong><span>${bill.paid ? 'Paga' : 'Pendente'}</span></div><div class="row-actions"><button type="button" data-bill-action="edit" data-id="${bill.id}">Editar</button><button type="button" data-bill-action="delete" data-id="${bill.id}">Excluir</button></div></article>`;
+  $('#billList').innerHTML = sorted.length ? groupBillsByCard(sorted).map(group => {
+    const groupPending = group.bills.filter(bill => !bill.paid);
+    const groupTotal = groupPending.reduce((sum, bill) => sum + bill.value, 0);
+    const owner = group.card.owner ? ownerLabel(group.card.owner) : '';
+    const cardCaption = group.card.id
+      ? `${group.card.missing ? 'Cartão removido' : 'Titular do cartão'}: ${owner || 'não identificado'}`
+      : 'Dívidas que não estão vinculadas a um cartão';
+    const items = group.bills.map(bill => {
+      const tags = [bill.recurrenceId ? 'Recorrente' : '', bill.installmentPlanId ? `Parcela ${bill.installmentNumber} de ${bill.installmentCount}` : '', bill.carriedFrom ? `Pendente de ${bill.carriedFrom}` : ''].filter(Boolean);
+      return `<article class="bill-item ${bill.paid ? 'is-paid' : ''}"><label class="bill-check" aria-label="Marcar ${escapeHtml(bill.description)} como ${bill.paid ? 'pendente' : 'paga'}"><input type="checkbox" data-bill-id="${bill.id}" ${bill.paid ? 'checked' : ''} ${monthData.status === 'closed' ? 'disabled' : ''}><span aria-hidden="true">✓</span></label><div class="bill-main"><strong>${escapeHtml(bill.description)}</strong><span><i class="owner-pill ${ownerClass(bill.paidBy)}">Dívida de ${escapeHtml(ownerLabel(bill.paidBy))}</i> · Vence dia ${bill.dueDay} · ${escapeHtml(bill.category)}${tags.length ? ` · ${escapeHtml(tags.join(' · '))}` : ''}</span></div><div class="bill-value"><strong>${money(bill.value)}</strong><span>${bill.paid ? 'Paga' : 'Pendente'}</span></div><div class="row-actions"><button type="button" data-bill-action="edit" data-id="${bill.id}">Editar</button><button type="button" data-bill-action="delete" data-id="${bill.id}">Excluir</button></div></article>`;
+    }).join('');
+    return `<section class="bill-group" aria-label="${escapeHtml(group.card.name)}"><div class="bill-group-heading"><div><strong>${escapeHtml(group.card.name)}</strong><span>${escapeHtml(cardCaption)}</span></div><div class="bill-group-total"><strong>${money(groupTotal)}</strong><span>${groupPending.length} ${groupPending.length === 1 ? 'pendente' : 'pendentes'}</span></div></div><div class="bill-group-items">${items}</div></section>`;
   }).join('') : '<div class="bill-empty"><strong>Cadastre faturas e contas fixas.</strong><br>Elas entram no valor comprometido e na previsão do mês.</div>';
 }
 function renderAlerts(projected) {
@@ -410,8 +449,9 @@ function updateTransactionForm() {
 }
 function openBill(bill = null) {
   if (!ensureOpenMonth()) return;
+  renderCards();
   const form = $('#billForm'); form.reset(); form.dataset.editId = bill?.id || ''; form.querySelector('h2').textContent = bill ? 'Editar conta' : 'Nova conta do mês';
-  if (bill) { form.elements.description.value = bill.description; setFormCurrency(form.elements.value, bill.value); form.elements.dueDay.value = bill.dueDay; form.elements.category.value = bill.category; form.elements.paidBy.value = bill.paidBy; form.elements.scope.value = bill.scope || 'individual'; form.elements.recurring.checked = Boolean(bill.recurrenceId); }
+  if (bill) { const card = billCardDetails(bill); form.elements.description.value = bill.description; setFormCurrency(form.elements.value, bill.value); form.elements.dueDay.value = bill.dueDay; form.elements.category.value = bill.category; if (card.id && card.missing) form.elements.cardId.innerHTML += `<option value="${escapeHtml(card.id)}">${escapeHtml(card.name)} · cartão removido</option>`; form.elements.cardId.value = card.id || ''; form.elements.paidBy.value = bill.paidBy; form.elements.scope.value = bill.scope || 'individual'; form.elements.recurring.checked = Boolean(bill.recurrenceId); }
   if (bill) {
     form.elements.installments.value = bill.installmentCount || 1;
     if (bill.installmentPlanId) form.elements.description.value = bill.description.replace(/ \(\d+\/\d+\)$/, '');
@@ -434,7 +474,9 @@ function updateBillScheduleFields() {
 }
 function renderCards() {
   $('#cardList').innerHTML = appConfig.cards.length ? appConfig.cards.map(card => `<div class="card-item"><div><strong>${escapeHtml(card.name)}</strong><span>${ownerLabel(card.owner)} · limite ${card.limit ? money(card.limit) : 'não informado'} · fecha dia ${card.closingDay} · vence dia ${card.dueDay}</span></div><div class="card-item-actions"><button type="button" data-card-edit="${card.id}" aria-label="Editar ${escapeHtml(card.name)}">Editar</button><button type="button" data-card-remove="${card.id}" aria-label="Excluir ${escapeHtml(card.name)}">Excluir</button></div></div>`).join('') : '<div class="bill-empty">Nenhum cartão cadastrado.</div>';
-  $('#installmentCardSelect').innerHTML = appConfig.cards.map(card => `<option value="${card.id}">${escapeHtml(card.name)} · ${ownerLabel(card.owner)}</option>`).join('');
+  const options = appConfig.cards.map(card => `<option value="${card.id}">${escapeHtml(card.name)} · cartão de ${ownerLabel(card.owner)}</option>`).join('');
+  $('#installmentCardSelect').innerHTML = options;
+  $('#billCardSelect').innerHTML = `<option value="">Sem cartão</option>${options}`;
 }
 function renderCreditCards() {
   const items = appConfig.cards.map(card => { const used = cardOutstanding(card.id), limit = Number(card.limit) || 0; return { card, used, limit, available: limit ? limit - used : 0, invoice: currentCardInvoice(card.id) }; });
@@ -455,7 +497,12 @@ function openCards(card = null) {
 function openInstallment() {
   if (!ensureOpenMonth()) return; renderCards();
   if (!appConfig.cards.length) { toast('Cadastre um cartão primeiro'); openCards(); return; }
-  const form = $('#installmentForm'); form.reset(); form.elements.installments.value = 1; form.elements.purchaseDate.valueAsDate = today; openDialog('#installmentDialog');
+  const form = $('#installmentForm'); form.reset(); form.elements.installments.value = 1; form.elements.purchaseDate.valueAsDate = today; updateInstallmentOwner(); openDialog('#installmentDialog');
+}
+function updateInstallmentOwner() {
+  const form = $('#installmentForm');
+  const card = appConfig.cards.find(item => item.id === form.elements.cardId.value);
+  if (card && form.elements.paidBy) form.elements.paidBy.value = card.owner;
 }
 function openCloseMonth() {
   if (monthData.status === 'closed') { reopenMonth(); return; }
@@ -658,7 +705,13 @@ $('#billForm').addEventListener('submit', event => {
   if (event.submitter?.value === 'cancel') return;
   event.preventDefault(); const formElement = event.currentTarget, form = new FormData(formElement), value = parseCurrency(form.get('value')), dueDay = Number(form.get('dueDay')), description = String(form.get('description') || '').trim(), installments = Number(form.get('installments') || formElement.elements.installments.value || 1);
   if (!description || !value || value < 0 || dueDay < 1 || dueDay > 31 || installments < 1 || installments > 60) { toast('Preencha a conta, o valor, o vencimento e as parcelas'); return; }
-  const data = { description, value, dueDay, category: form.get('category'), paidBy: form.get('paidBy'), scope: form.get('scope') || 'individual', splitYou: 50 }, editId = formElement.dataset.editId;
+  const card = appConfig.cards.find(item => item.id === form.get('cardId'));
+  const previousBill = monthData.bills.find(item => item.id === formElement.dataset.editId);
+  const previousCard = previousBill ? billCardDetails(previousBill) : null;
+  const data = { description, value, dueDay, category: form.get('category'), paidBy: form.get('paidBy'), scope: form.get('scope') || 'individual', splitYou: 50,
+    cardId: card?.id || (previousCard?.missing && form.get('cardId') === previousCard.id ? previousCard.id : null),
+    cardName: card?.name || (previousCard?.missing && form.get('cardId') === previousCard.id ? previousCard.name : ''),
+    cardOwner: card?.owner || (previousCard?.missing && form.get('cardId') === previousCard.id ? previousCard.owner : '') }, editId = formElement.dataset.editId;
   if (editId) {
     const bill = monthData.bills.find(item => item.id === editId); if (!bill) return;
     Object.assign(bill, data, { description: bill.installmentPlanId ? `${description} (${bill.installmentNumber}/${bill.installmentCount})` : description });
@@ -668,8 +721,9 @@ $('#billForm').addEventListener('submit', event => {
     if (!bill.recurrenceId && form.get('recurring')) { const recurrence = { id: uid(), ...data, startMonth: monthKey(), endMonth: null, active: true }; appConfig.recurringBills.push(recurrence); bill.recurrenceId = recurrence.id; bill.generatedMonth = monthKey(); saveConfig(); }
     if (bill.recurrenceId && !form.get('recurring')) { const template = appConfig.recurringBills.find(item => item.id === bill.recurrenceId); if (template) { template.active = false; template.endMonth = monthKey(); } delete bill.recurrenceId; delete bill.generatedMonth; saveConfig(); }
   } else {
-    if (installments > 1) {
-      appConfig.installmentPlans.push({ id: uid(), description, installmentValue: value, totalValue: value * installments, installments, firstMonth: monthKey(), dueDay, category: data.category, paidBy: data.paidBy, scope: data.scope, splitYou: 50 });
+    if (installments > 1 || (card && !form.get('recurring'))) {
+      appConfig.installmentPlans.push({ id: uid(), description, installmentValue: value, totalValue: value * installments, installments, firstMonth: monthKey(), dueDay, category: data.category, paidBy: data.paidBy, scope: data.scope, splitYou: 50,
+        cardId: data.cardId, cardName: data.cardName, cardOwner: data.cardOwner });
       saveConfig(); materializeScheduledItems();
     } else {
       const bill = { id: uid(), ...data, paid: false, transactionId: null };
@@ -731,7 +785,15 @@ $('#cardForm').addEventListener('submit', event => {
   event.preventDefault(); const formElement = event.currentTarget, form = new FormData(formElement), closingDay = Number(form.get('closingDay')), dueDay = Number(form.get('dueDay')), limit = parseCurrency(form.get('limit')), name = String(form.get('name')).trim();
   if (!name || !limit || limit < 0 || closingDay < 1 || closingDay > 31 || dueDay < 1 || dueDay > 31) { toast('Informe nome, limite, fechamento e vencimento válidos'); return; }
   const data = { name, owner: form.get('owner'), limit, closingDay, dueDay }, editId = formElement.dataset.editId;
-  if (editId) { const card = appConfig.cards.find(item => item.id === editId); if (card) Object.assign(card, data); }
+  if (editId) {
+    const card = appConfig.cards.find(item => item.id === editId);
+    if (card) {
+      Object.assign(card, data);
+      appConfig.installmentPlans.filter(plan => plan.cardId === card.id).forEach(plan => Object.assign(plan, { cardName: card.name, cardOwner: card.owner }));
+      appConfig.recurringBills.filter(template => template.cardId === card.id).forEach(template => Object.assign(template, { cardName: card.name, cardOwner: card.owner }));
+      monthData?.bills.filter(bill => bill.cardId === card.id).forEach(bill => Object.assign(bill, { cardName: card.name, cardOwner: card.owner }));
+    }
+  }
   else appConfig.cards.push({ id: uid(), ...data });
   saveConfig(); formElement.reset(); formElement.dataset.editId = ''; $('#saveCardButton').textContent = 'Adicionar cartão'; renderCards(); renderCreditCards(); toast(editId ? 'Cartão atualizado' : 'Cartão adicionado');
 });
@@ -762,9 +824,10 @@ $('#installmentForm').addEventListener('submit', event => {
   const available = card.limit - cardOutstanding(card.id);
   if (card.limit && totalValue > available) { toast(`Limite insuficiente: ${money(Math.max(0, available))} disponível`); return; }
   const purchaseMonth = monthKey(purchaseDate), firstMonth = Number(String(form.get('purchaseDate')).slice(8, 10)) > card.closingDay ? addMonths(purchaseMonth, 1) : purchaseMonth;
-  appConfig.installmentPlans.push({ id: uid(), cardId: card.id, cardName: card.name, dueDay: card.dueDay, paidBy: card.owner, description, category: form.get('category'), totalValue, installments, purchaseDate: form.get('purchaseDate'), firstMonth, scope: form.get('scope'), splitYou: 50 });
+  appConfig.installmentPlans.push({ id: uid(), cardId: card.id, cardName: card.name, cardOwner: card.owner, dueDay: card.dueDay, paidBy: form.get('paidBy') || card.owner, description, category: form.get('category'), totalValue, installments, purchaseDate: form.get('purchaseDate'), firstMonth, scope: form.get('scope'), splitYou: 50 });
   saveConfig(); materializeScheduledItems(); saveLocal(false); render(); event.currentTarget.closest('dialog').close(); toast(installments > 1 ? `${installments} parcelas criadas` : 'Compra adicionada à fatura');
 });
+$('#installmentCardSelect').addEventListener('change', updateInstallmentOwner);
 
 $('#closeMonthForm').addEventListener('submit', event => {
   if (event.submitter?.value === 'cancel') return;

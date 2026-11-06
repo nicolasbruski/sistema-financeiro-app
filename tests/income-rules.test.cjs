@@ -200,4 +200,22 @@ const creditMonths = {
 context.localStorage.setItem('nosso-caixa:2027-01', JSON.stringify(creditMonths['2027-01']));
 assert.equal(context.cardOutstanding('card-1', creditConfig, key => creditMonths[key]), 3_334);
 
+const groupedBills = context.groupBillsByCard([
+  { id: 'bill-1', cardId: 'card-2', cardName: 'Nome antigo', paidBy: 'Namorada' },
+  { id: 'bill-2', cardId: 'card-1', cardName: 'Cartão removido', cardOwner: 'Você', paidBy: 'Namorada' },
+  { id: 'bill-3', paidBy: 'Você' }
+], {
+  cards: [{ id: 'card-2', name: 'Nubank', owner: 'Você' }],
+  installmentPlans: []
+});
+
+assert.equal(groupedBills.length, 3);
+assert.equal(groupedBills[0].card.name, 'Nubank');
+assert.equal(groupedBills[0].card.owner, 'Você');
+assert.equal(groupedBills[0].bills[0].paidBy, 'Namorada');
+assert.equal(groupedBills[1].card.name, 'Cartão removido');
+assert.equal(groupedBills[1].card.owner, 'Você');
+assert.equal(groupedBills[1].card.missing, true);
+assert.equal(groupedBills[2].card.id, null);
+
 console.log('income rules: ok');

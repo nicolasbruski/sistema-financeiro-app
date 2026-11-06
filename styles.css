@@ -158,7 +158,16 @@ h2 { margin: 0; font-size: 1.05rem; letter-spacing: -0.02em; }
 .goal-row { display: flex; justify-content: space-between; margin-top: 1.25rem; padding-top: 1rem; border-top: 1px solid var(--line); font-size: 0.8rem; }
 .goal-row strong { font-size: 0.8rem; color: var(--green); }
 .bills-heading { align-items: center; }
-.bill-list { display: grid; }
+.bill-list { display: grid; gap: 0.875rem; }
+.bill-group { overflow: hidden; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--paper); }
+.bill-group-heading { display: grid; gap: 0.65rem; padding: 0.875rem 1rem; background: var(--mist); }
+.bill-group-heading > div:first-child { min-width: 0; }
+.bill-group-heading strong, .bill-group-heading span { display: block; }
+.bill-group-heading > div:first-child > strong { overflow: hidden; font-size: 0.875rem; text-overflow: ellipsis; white-space: nowrap; }
+.bill-group-heading span { margin-top: 0.1rem; color: var(--ink-soft); font-size: 0.7rem; }
+.bill-group-total { text-align: left; }
+.bill-group-total strong { font-size: 0.82rem; font-variant-numeric: tabular-nums; }
+.bill-group-items { padding: 0 1rem; }
 .bill-item { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 0.75rem; min-height: 4.5rem; padding: 0.55rem 0; border-top: 1px solid #edf0f3; }
 .bill-item:first-child { border-top: 0; }
 .bill-check { position: relative; display: grid; place-items: center; width: 1.5rem; height: 1.5rem; }
@@ -170,6 +179,7 @@ h2 { margin: 0; font-size: 1.05rem; letter-spacing: -0.02em; }
 .bill-main strong, .bill-main span { display: block; }
 .bill-main strong { overflow: hidden; font: 600 0.875rem Inter, sans-serif; text-overflow: ellipsis; white-space: nowrap; }
 .bill-main span { margin-top: 0.15rem; color: var(--ink-soft); font-size: 0.72rem; }
+.bill-main .owner-pill { display: inline-block; margin: 0; font-size: 0.68rem; }
 .bill-value { text-align: right; }
 .bill-value strong, .bill-value span { display: block; }
 .bill-value strong { font-size: 0.82rem; }
@@ -266,6 +276,8 @@ h2 { margin: 0; font-size: 1.05rem; letter-spacing: -0.02em; }
 
 @media (min-width: 30rem) {
   .form-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .bill-group-heading { grid-template-columns: minmax(0, 1fr) auto; align-items: center; }
+  .bill-group-total { text-align: right; }
 }
 
 @media (min-width: 48rem) {
