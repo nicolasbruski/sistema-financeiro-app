@@ -142,7 +142,8 @@ function materializeScheduledItems() {
   const key = monthKey();
   let changed = false;
   appConfig.recurringBills.forEach(template => {
-    const active = template.active !== false && template.startMonth <= key && (!template.endMonth || template.endMonth >= key);
+    const active = template.active !== false && template.startMonth <= key && (!template.endMonth || template.endMonth >= key)
+      && !template.excludedMonths?.includes(key);
     if (!active || monthData.bills.some(bill => bill.recurrenceId === template.id && bill.generatedMonth === key)) return;
     monthData.bills.push({ id: `rec-${template.id}-${key}`, description: template.description, value: template.value, dueDay: template.dueDay,
       category: template.category, paidBy: template.paidBy, scope: template.scope || 'individual', splitYou: template.splitYou ?? 50,
@@ -152,7 +153,8 @@ function materializeScheduledItems() {
   });
   appConfig.installmentPlans.forEach(plan => {
     const index = monthsBetween(plan.firstMonth, key);
-    if (index < 0 || index >= plan.installments || monthData.bills.some(bill => bill.installmentPlanId === plan.id && bill.installmentNumber === index + 1)) return;
+    if (index < 0 || index >= plan.installments || plan.excludedInstallments?.includes(index + 1)
+      || monthData.bills.some(bill => bill.installmentPlanId === plan.id && bill.installmentNumber === index + 1)) return;
     const base = plan.installmentValue || Math.floor(plan.totalValue / plan.installments);
     const value = plan.installmentValue ? base : (index === plan.installments - 1 ? plan.totalValue - base * (plan.installments - 1) : base);
     monthData.bills.push({ id: `inst-${plan.id}-${index + 1}`, description: plan.installments > 1 ? `${plan.description} (${index + 1}/${plan.installments})` : plan.description, value,
@@ -185,6 +187,49 @@ function loadMonth() {
 function saveLocal(feedback = true) {
   writeMonth(monthKey(), monthData);
   if (feedback) toast('Alteração salva');
+}
+
+function updateBillTransaction(data, bill, key) {
+  if (!bill.transactionId) return;
+  const transaction = data.transactions.find(item => item.id === bill.transactionId);
+  if (!transaction) return;
+  const date = parseMonthKey(key);
+  const lastDay = new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
+  Object.assign(transaction, {
+    description: bill.description,
+    value: bill.value,
+    category: bill.category,
+    paidBy: bill.paidBy,
+    scope: bill.scope,
+    splitYou: bill.splitYou ?? 50,
+    date: `${key}-${String(Math.min(bill.dueDay, lastDay)).padStart(2, '0')}`
+  });
+}
+
+function updateFutureBills(referenceField, referenceId, fromKey, changes, descriptionForBill = changes => changes.description) {
+  localMonthKeys().filter(key => key > fromKey).forEach(key => {
+    const data = readMonth(key);
+    let changed = false;
+    data.bills.forEach(bill => {
+      if (bill[referenceField] !== referenceId) return;
+      Object.assign(bill, changes, { description: descriptionForBill(changes, bill) });
+      updateBillTransaction(data, bill, key);
+      changed = true;
+    });
+    if (changed) writeMonth(key, data, false);
+  });
+}
+
+function removeFutureBills(referenceField, referenceId, fromKey) {
+  localMonthKeys().filter(key => key > fromKey).forEach(key => {
+    const data = readMonth(key);
+    const removed = data.bills.filter(bill => bill[referenceField] === referenceId);
+    if (!removed.length) return;
+    const transactionIds = new Set(removed.map(bill => bill.transactionId).filter(Boolean));
+    data.bills = data.bills.filter(bill => bill[referenceField] !== referenceId);
+    data.transactions = data.transactions.filter(transaction => !transactionIds.has(transaction.id));
+    writeMonth(key, data, false);
+  });
 }
 
 function monthlyIncomeTotal(data = monthData) { return ['Você', 'Namorada'].reduce((sum, owner) => sum + (Number(data.monthlyIncome?.[owner]) || 0), 0); }
@@ -808,11 +853,11 @@ $('#billForm').addEventListener('submit', event => {
   if (editId) {
     const bill = monthData.bills.find(item => item.id === editId); if (!bill) return;
     Object.assign(bill, data, { description: bill.installmentPlanId ? `${description} (${bill.installmentNumber}/${bill.installmentCount})` : description });
-    if (bill.transactionId) { const transaction = monthData.transactions.find(item => item.id === bill.transactionId); if (transaction) Object.assign(transaction, { description: bill.description, value, category: data.category, paidBy: data.paidBy, scope: data.scope, date: `${monthKey()}-${String(Math.min(dueDay, new Date(cursor.getFullYear(), cursor.getMonth() + 1, 0).getDate())).padStart(2, '0')}` }); }
-    if (bill.installmentPlanId && confirm('Aplicar esta alteração também às próximas parcelas?')) { const plan = appConfig.installmentPlans.find(item => item.id === bill.installmentPlanId); if (plan) Object.assign(plan, data, { description, installmentValue: value, totalValue: value * plan.installments }); saveConfig(); }
-    if (bill.recurrenceId && form.get('recurring') && confirm('Aplicar esta alteração também aos próximos meses?')) { const template = appConfig.recurringBills.find(item => item.id === bill.recurrenceId); if (template) Object.assign(template, data); saveConfig(); }
+    updateBillTransaction(monthData, bill, monthKey());
+    if (bill.installmentPlanId && confirm('Aplicar esta alteração também às próximas parcelas?')) { const plan = appConfig.installmentPlans.find(item => item.id === bill.installmentPlanId); if (plan) { Object.assign(plan, data, { description, installmentValue: value, totalValue: value * plan.installments }); updateFutureBills('installmentPlanId', plan.id, monthKey(), data, (changes, futureBill) => `${description} (${futureBill.installmentNumber}/${futureBill.installmentCount})`); } saveConfig(); }
+    if (bill.recurrenceId && form.get('recurring') && confirm('Aplicar esta alteração também aos próximos meses?')) { const template = appConfig.recurringBills.find(item => item.id === bill.recurrenceId); if (template) { Object.assign(template, data); updateFutureBills('recurrenceId', template.id, monthKey(), data); } saveConfig(); }
     if (!bill.recurrenceId && form.get('recurring')) { const recurrence = { id: uid(), ...data, startMonth: monthKey(), endMonth: null, active: true }; appConfig.recurringBills.push(recurrence); bill.recurrenceId = recurrence.id; bill.generatedMonth = monthKey(); saveConfig(); }
-    if (bill.recurrenceId && !form.get('recurring')) { const template = appConfig.recurringBills.find(item => item.id === bill.recurrenceId); if (template) { template.active = false; template.endMonth = monthKey(); } delete bill.recurrenceId; delete bill.generatedMonth; saveConfig(); }
+    if (bill.recurrenceId && !form.get('recurring')) { const recurrenceId = bill.recurrenceId; const template = appConfig.recurringBills.find(item => item.id === recurrenceId); if (template) { template.active = false; template.endMonth = monthKey(); } removeFutureBills('recurrenceId', recurrenceId, monthKey()); delete bill.recurrenceId; delete bill.generatedMonth; saveConfig(); }
   } else {
     if (installments > 1 || (card && !form.get('recurring'))) {
       appConfig.installmentPlans.push({ id: uid(), description, installmentValue: value, totalValue: value * installments, installments, firstMonth: monthKey(), dueDay, category: data.category, paidBy: data.paidBy, scope: data.scope, splitYou: 50,
@@ -847,8 +892,18 @@ $('#billList').addEventListener('click', event => {
   const bill = monthData.bills.find(item => item.id === button.dataset.id); if (!bill) return;
   if (button.dataset.billAction === 'edit') openBill(bill);
   if (button.dataset.billAction === 'delete' && confirm(`Excluir “${bill.description}” deste mês?`)) {
-    if (bill.recurrenceId && confirm('Encerrar também a recorrência nos próximos meses?')) { const template = appConfig.recurringBills.find(item => item.id === bill.recurrenceId); if (template) { template.active = false; template.endMonth = addMonths(monthKey(), -1); } saveConfig(); }
-    if (bill.installmentPlanId && confirm('Excluir também as parcelas dos próximos meses?')) { appConfig.installmentPlans = appConfig.installmentPlans.filter(item => item.id !== bill.installmentPlanId); saveConfig(); }
+    if (bill.recurrenceId) {
+      const template = appConfig.recurringBills.find(item => item.id === bill.recurrenceId);
+      if (template) template.excludedMonths = [...new Set([...(template.excludedMonths || []), monthKey()])];
+      if (confirm('Encerrar também a recorrência nos próximos meses?')) { if (template) { template.active = false; template.endMonth = addMonths(monthKey(), -1); } removeFutureBills('recurrenceId', bill.recurrenceId, monthKey()); }
+      saveConfig();
+    }
+    if (bill.installmentPlanId) {
+      const plan = appConfig.installmentPlans.find(item => item.id === bill.installmentPlanId);
+      if (plan) plan.excludedInstallments = [...new Set([...(plan.excludedInstallments || []), bill.installmentNumber])];
+      if (confirm('Excluir também as parcelas dos próximos meses?')) { removeFutureBills('installmentPlanId', bill.installmentPlanId, monthKey()); appConfig.installmentPlans = appConfig.installmentPlans.filter(item => item.id !== bill.installmentPlanId); }
+      saveConfig();
+    }
     monthData.bills = monthData.bills.filter(item => item.id !== bill.id); if (bill.transactionId) monthData.transactions = monthData.transactions.filter(item => item.id !== bill.transactionId);
     saveLocal(false); render(); toast('Conta excluída');
   }

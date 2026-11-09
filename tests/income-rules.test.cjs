@@ -231,4 +231,48 @@ assert.equal(groupedBills[1].card.owner, 'Você');
 assert.equal(groupedBills[1].card.missing, true);
 assert.equal(groupedBills[2].card.id, null);
 
+context.localStorage.setItem('nosso-caixa:2029-12', JSON.stringify({
+  month: '2029-12',
+  bills: [{ id: 'old-rec', recurrenceId: 'rec-1', description: 'Valor anterior', value: 8_000 }],
+  transactions: []
+}));
+context.localStorage.setItem('nosso-caixa:2030-02', JSON.stringify({
+  month: '2030-02',
+  bills: [{ id: 'future-rec', recurrenceId: 'rec-1', description: 'Valor anterior', value: 8_000, dueDay: 31, category: 'Outros', paidBy: 'Você', scope: 'individual', paid: true, transactionId: 'tx-rec' }],
+  transactions: [{ id: 'tx-rec', billId: 'future-rec', description: 'Valor anterior', value: 8_000, date: '2030-02-28' }]
+}));
+context.updateFutureBills('recurrenceId', 'rec-1', '2030-01', {
+  description: 'Valor atualizado', value: 9_500, dueDay: 20, category: 'Moradia', paidBy: 'Namorada', scope: 'shared', splitYou: 40
+});
+const priorRecurringMonth = JSON.parse(context.localStorage.getItem('nosso-caixa:2029-12'));
+const editedRecurringMonth = JSON.parse(context.localStorage.getItem('nosso-caixa:2030-02'));
+assert.equal(priorRecurringMonth.bills[0].description, 'Valor anterior');
+assert.equal(editedRecurringMonth.bills[0].description, 'Valor atualizado');
+assert.equal(editedRecurringMonth.bills[0].value, 9_500);
+assert.equal(editedRecurringMonth.transactions[0].description, 'Valor atualizado');
+assert.equal(editedRecurringMonth.transactions[0].value, 9_500);
+assert.equal(editedRecurringMonth.transactions[0].date, '2030-02-20');
+
+context.localStorage.setItem('nosso-caixa:2030-03', JSON.stringify({
+  month: '2030-03',
+  bills: [{ id: 'future-inst', installmentPlanId: 'plan-delete', installmentNumber: 3, paid: true, transactionId: 'tx-inst' }, { id: 'keep-bill' }],
+  transactions: [{ id: 'tx-inst', billId: 'future-inst' }, { id: 'keep-tx' }]
+}));
+context.removeFutureBills('installmentPlanId', 'plan-delete', '2030-01');
+const cleanedInstallmentMonth = JSON.parse(context.localStorage.getItem('nosso-caixa:2030-03'));
+assert.deepEqual(cleanedInstallmentMonth.bills.map(item => item.id), ['keep-bill']);
+assert.deepEqual(cleanedInstallmentMonth.transactions.map(item => item.id), ['keep-tx']);
+
+const excludedOccurrences = JSON.parse(vm.runInContext(`
+  cursor = new Date(2031, 4, 1);
+  monthData = emptyMonth('2031-05');
+  appConfig = loadConfigFrom({
+    recurringBills: [{ id: 'rec-skip', description: 'Recorrente excluída', value: 1000, dueDay: 5, category: 'Outros', paidBy: 'Você', startMonth: '2031-01', active: true, excludedMonths: ['2031-05'] }],
+    installmentPlans: [{ id: 'plan-skip', description: 'Parcela excluída', totalValue: 3000, installments: 3, firstMonth: '2031-03', dueDay: 10, category: 'Outros', paidBy: 'Você', excludedInstallments: [3] }]
+  });
+  materializeScheduledItems();
+  JSON.stringify(monthData.bills);
+`, context));
+assert.deepEqual(excludedOccurrences, []);
+
 console.log('income rules: ok');
