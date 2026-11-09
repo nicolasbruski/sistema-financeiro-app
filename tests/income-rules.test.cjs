@@ -275,4 +275,16 @@ const excludedOccurrences = JSON.parse(vm.runInContext(`
 `, context));
 assert.deepEqual(excludedOccurrences, []);
 
+const chartGroups = context.expenseGroups([
+  { id: 'expense-1', type: 'expense', category: 'Alimentação', value: 12_000 },
+  { id: 'expense-2', type: 'expense', category: 'Transporte', value: 8_000 },
+  { id: 'bill-expense', type: 'expense', category: 'Moradia', value: 50_000, billId: 'bill-1' },
+  { id: 'income-1', type: 'income', category: 'Receita', value: 100_000 }
+]);
+assert.deepEqual(chartGroups.regular.map(item => item.id), ['expense-1', 'expense-2']);
+assert.deepEqual(chartGroups.bills.map(item => item.id), ['bill-expense']);
+const regularChart = context.categoryBreakdown(chartGroups.regular);
+assert.equal(regularChart.total, 20_000);
+assert.deepEqual(regularChart.rows.map(([category, value]) => [category, value]), [['Alimentação', 12_000], ['Transporte', 8_000]]);
+
 console.log('income rules: ok');

@@ -201,11 +201,29 @@ export default function App() {
 
           <Card className="panel category-panel" aria-labelledby="categoryTitle">
             <div className="panel-heading">
-              <div><h2 id="categoryTitle">Para onde foi</h2><p>Distribuição das despesas</p></div>
+              <div><h2 id="categoryTitle">Para onde foi</h2><p>Compare os gastos comuns com as contas que foram pagas</p></div>
             </div>
-            <div className="category-chart">
-              <div className="donut" id="categoryDonut"><span><strong id="categoryTotal">R$ 0</strong><small>em despesas</small></span></div>
-              <ul className="legend" id="categoryLegend"></ul>
+            <div className="category-comparison">
+              <section className="category-breakdown" aria-labelledby="regularExpensesTitle">
+                <div className="category-breakdown-heading">
+                  <h3 id="regularExpensesTitle">Gastos do dia a dia</h3>
+                  <p>Movimentações registradas diretamente</p>
+                </div>
+                <div className="category-chart">
+                  <div className="donut" id="regularCategoryDonut" role="img"><span><strong id="regularCategoryTotal">R$ 0</strong><small>em gastos</small></span></div>
+                  <ul className="legend" id="regularCategoryLegend"></ul>
+                </div>
+              </section>
+              <section className="category-breakdown debt-breakdown" aria-labelledby="billExpensesTitle">
+                <div className="category-breakdown-heading">
+                  <h3 id="billExpensesTitle">Dívidas pagas</h3>
+                  <p>Contas marcadas como pagas no mês</p>
+                </div>
+                <div className="category-chart">
+                  <div className="donut" id="billCategoryDonut" role="img"><span><strong id="billCategoryTotal">R$ 0</strong><small>em contas</small></span></div>
+                  <ul className="legend" id="billCategoryLegend"></ul>
+                </div>
+              </section>
             </div>
           </Card>
 

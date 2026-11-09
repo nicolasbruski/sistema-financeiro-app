@@ -396,7 +396,7 @@ function render() {
   $('#balanceDelta').textContent = monthData.budget ? (committed <= monthData.budget ? `${money(monthData.budget - committed)} livres no plano` : `${money(committed - monthData.budget)} acima do plano`) : 'Defina um limite no planejamento';
   $('#yourBalance').textContent = money(balances['Você']); $('#partnerBalance').textContent = money(balances.Namorada); $('#sharedBalance').textContent = money(balances.Casal);
   [['#yourBalance', balances['Você']], ['#partnerBalance', balances.Namorada], ['#sharedBalance', balances.Casal]].forEach(([selector, value]) => $(selector).classList.toggle('is-negative', value < 0));
-  renderFreshness(); renderWeeks(summary.expense, committed); renderCategories(summary.expense); renderPlan(committed); renderSavedFunds();
+  renderFreshness(); renderWeeks(summary.expense, committed); renderCategories(); renderPlan(committed); renderSavedFunds();
   renderTransactions(); renderRecentTransactions(); renderBills(); renderCreditCards(); renderBalanceChart(); updateClosedState();
 }
 function renderFreshness() {
@@ -411,12 +411,30 @@ function renderWeeks(totalExpense, committed) {
   const over = monthData.budget > 0 && committed > monthData.budget;
   $('#budgetChip').textContent = monthData.budget ? (over ? 'Acima do planejado' : 'Dentro do planejado') : 'Sem limite definido'; $('#budgetChip').classList.toggle('is-alert', over);
 }
-function renderCategories(totalExpense) {
-  const grouped = {}; monthData.transactions.filter(item => item.type === 'expense').forEach(item => grouped[item.category] = (grouped[item.category] || 0) + item.value);
-  const rows = Object.entries(grouped).sort((a, b) => b[1] - a[1]); let current = 0;
-  const stops = rows.map(([name, value]) => { const start = current; current += totalExpense ? value / totalExpense * 100 : 0; return `${CATEGORIES[name]?.color || CATEGORIES.Outros.color} ${start}% ${current}%`; });
-  $('#categoryDonut').style.background = stops.length ? `conic-gradient(${stops.join(',')})` : '#e9edf1'; $('#categoryTotal').textContent = money(totalExpense, 0);
-  $('#categoryLegend').innerHTML = rows.slice(0, 5).map(([name, value]) => `<li><i style="background:${CATEGORIES[name]?.color || CATEGORIES.Outros.color}"></i><span>${escapeHtml(name)}</span><strong>${totalExpense ? Math.round(value / totalExpense * 100) : 0}%</strong></li>`).join('') || '<li><span>As categorias aparecerão aqui.</span></li>';
+function categoryBreakdown(transactions) {
+  const grouped = {};
+  transactions.forEach(item => grouped[item.category] = (grouped[item.category] || 0) + item.value);
+  const rows = Object.entries(grouped).sort((a, b) => b[1] - a[1]);
+  return { total: rows.reduce((sum, [, value]) => sum + value, 0), rows };
+}
+function expenseGroups(transactions) {
+  const expenses = transactions.filter(item => item.type === 'expense');
+  return { regular: expenses.filter(item => !item.billId), bills: expenses.filter(item => item.billId) };
+}
+function renderCategoryBreakdown(prefix, transactions, emptyMessage) {
+  const { total, rows } = categoryBreakdown(transactions);
+  let current = 0;
+  const stops = rows.map(([name, value]) => { const start = current; current += total ? value / total * 100 : 0; return `${CATEGORIES[name]?.color || CATEGORIES.Outros.color} ${start}% ${current}%`; });
+  const donut = $(`#${prefix}CategoryDonut`);
+  donut.style.background = stops.length ? `conic-gradient(${stops.join(',')})` : '#e9edf1';
+  donut.setAttribute('aria-label', total ? `${money(total)} distribuídos em ${rows.length} categorias` : emptyMessage);
+  $(`#${prefix}CategoryTotal`).textContent = money(total, 0);
+  $(`#${prefix}CategoryLegend`).innerHTML = rows.slice(0, 5).map(([name, value]) => `<li><i style="background:${CATEGORIES[name]?.color || CATEGORIES.Outros.color}" aria-hidden="true"></i><span>${escapeHtml(name)}</span><span class="legend-numbers"><strong>${total ? Math.round(value / total * 100) : 0}%</strong><small>${money(value)}</small></span></li>`).join('') || `<li class="legend-empty"><span>${escapeHtml(emptyMessage)}</span></li>`;
+}
+function renderCategories() {
+  const groups = expenseGroups(monthData.transactions);
+  renderCategoryBreakdown('regular', groups.regular, 'Nenhum gasto do dia a dia neste mês.');
+  renderCategoryBreakdown('bill', groups.bills, 'Nenhuma dívida foi paga neste mês.');
 }
 
 function getFilteredTransactions() {
